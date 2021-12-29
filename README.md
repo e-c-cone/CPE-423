@@ -1,5 +1,5 @@
 # CPE-423
-BEEGUS: Bicameral Election Estimator for General Elections of the United States
+## BEEGUS: Bicameral Election Estimator for General Elections of the United States
 
 BEEGUS is an AI-driven election estimator, designed with forecasting U.S. congressional elections in mind. It is developed as a capstone project within the Electrical and Computer Engineering Department of Stevens Institute of Technology.
 
@@ -17,4 +17,6 @@ To accomplish this, BEEGUS will weigh and aggregate several forms of available i
 
 These various election prediction tactics will be fed as input data into three machine learning models. These will include a long short-term memory, a logistic regression, and a neural network. The three models will jointly weighted to generate the optimal candidate characteristics. A report card will subsequently be generated for a given candidate indicating deviation from the optimal characteristics desired by the community.
 
- 
+## Environment Management
+
+The environment used by the code is stored in the `envs` directory. This can be easily updated through the Anaconda terminal utilizing `conda env export > envs/base.yml` to update the existing .yml file, or alternatively, `conda env update -f envs/base.yml --prune` to update the activated conda environment. To create a new conda environment, `conda env create -f envs/base.yml` can be used. The `base.yml` can be replaced with any other given yml files being utilized. 
