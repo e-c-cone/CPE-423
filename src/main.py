@@ -5,13 +5,14 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 
 def arguments():
     parser = argparse.ArgumentParser(description="BEEGUS")
 
-    parser.add_argument("-p19", "--post1997", default=False, action="store_true",
+    parser.add_argument("-p19", "--post1997", default=True, action="store_true",
                         help="Determine whether to truncate data to post 1997")
 
     return parser.parse_args()
@@ -99,14 +100,30 @@ if __name__ == "__main__":
             exit()
     x_train, x_test, y_train, y_test = train_test_split(elections[X], elections[Y], test_size=0.3)
 
+    logger.info(f'Beginning Linear Regression Training')
     LR = LinearRegression().fit(x_train, y_train)
     predictions = LR.predict(x_test)
     mse = mean_squared_error(predictions, y_test)
     score = LR.score(x_test, y_test)
-    logger.info(f'First predictions and actual values\n')
+    logger.info(f'First predictions')
     [print(pred[:4]) for pred in predictions[:4]]
+    logger.info(f'Actual Values')
+    print(f'\n{y_test[:4]}')
+    logger.info(f'Mean Squared Error for Test Set: {mse}')
+    logger.info(f'R^2 Score: {score}')
+    logger.success(f'Linear Regression Completed')
+
+    logger.info(f'Beginning Random Forest Regression Training')
+    RFR = RandomForestRegressor().fit(x_train, y_train)
+    predictions = RFR.predict(x_test)
+    mse = mean_squared_error(predictions, y_test)
+    score = RFR.score(x_test, y_test)
+    logger.info(f'First predictions')
+    [print(pred[:4]) for pred in predictions[:4]]
+    logger.info(f'Actual Values')
     print(f'\n{y_test[:4]}')
     logger.success(f'Mean Squared Error for Test Set: {mse}')
     logger.success(f'R^2 Score: {score}')
+    logger.success(f'Random Forest Regression Completed')
 
 
