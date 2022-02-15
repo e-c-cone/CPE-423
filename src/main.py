@@ -126,4 +126,6 @@ if __name__ == "__main__":
     logger.success(f'R^2 Score: {score}')
     logger.success(f'Random Forest Regression Completed')
 
+    house_rep['candidate'].to_csv('candidates.csv', columns=['candidate'], index=False)
+
 
