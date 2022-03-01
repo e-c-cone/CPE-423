@@ -56,6 +56,7 @@ for(id in ids) {
       # print(cond)
       print("Error encountered")
       print(tmp)
+      write.csv(id, fpath)
     })
   }
 }
