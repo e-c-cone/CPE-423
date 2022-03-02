@@ -10,15 +10,15 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from sklearn.decomposition import PCA
 
-import processing.candidate_data as cd
-from processing.election_data import get_winner_id
+import processing.load_data as load_data
+from processing.election_data import generate_dataset
 
 
 def arguments():
     parser = argparse.ArgumentParser(description="BEEGUS")
 
-    parser.add_argument("-p19", "--post1997", default=True, action="store_true",
-                        help="Determine whether to truncate data to post 1997")
+    parser.add_argument("-v", "--verbose", default=False, action="store_true",
+                        help="Include warning data")
 
     return parser.parse_args()
 
@@ -26,12 +26,8 @@ def arguments():
 if __name__ == "__main__":
     args = arguments()
 
-    # Filter data to be after specified cutoff date according to argument
+    # Filter data to be after specified cutoff year
     cutoff_year = 1990
-    if args.post1997:
-        cutoff_year = 1997
-
-    house_rep = cd.get_candidates(cutoff_year=cutoff_year)
 
     # # GDP by state by year
     # GDP_by_state = pd.read_csv(os.path.join('data', 'SAGDP1__ALL_AREAS_1997_2020.csv'), sep=',', encoding='latin-1')
@@ -42,19 +38,15 @@ if __name__ == "__main__":
     # GDP_by_state[string_dtypes.columns] = string_dtypes.apply(lambda x: x.str.lower())
     # logger.success("GDP by State Loaded")
 
-    personal_income_by_state = cd.get_personal_income(cutoff_year=cutoff_year)
+    # personal_income_by_state = load_data.get_personal_income(year=cutoff_year)
+    # print(personal_income_by_state)
 
     ###  Generate Election Data  ###
     # Here we clean the data, and reshape it using pandas dataframes to be an appropriate shape for input into the
     # Linear Regression algorithm. We start by generating the possible outputs (percentage of votes for each party)
     # and continue by adding the GDP and Income data. This is not expected to be very accurate.
 
-    FIPS = pd.read_csv(os.path.join('data', 'FIPS.csv'))
-    FIPS_POSSIBLE = FIPS.to_numpy()[0]
-
-    for state in FIPS_POSSIBLE:
-        for year in range(cutoff_year, 2020):
-            get_winner_id(house_rep, year, state)
+    x, y = generate_dataset(cutoff_year, args.verbose)
 
     # house_rep['year_and_state'] = house_rep['year'].astype(str) + '_' + str(house_rep['state_fips'])
     # elections = pd.DataFrame(house_rep['year_and_state'].unique(), columns=['year_and_state']).set_index(
@@ -100,34 +92,34 @@ if __name__ == "__main__":
     #         print(personal_income_by_state.loc[(personal_income_by_state['GeoName'] == 'united states') & (
     #                 personal_income_by_state['LineCode'] == 1), index[:4]])
     #         exit()
-    # x_train, x_test, y_train, y_test = train_test_split(elections[X], elections[Y], test_size=0.3)
-    # # logger.debug(len(x_train))
-    # x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.3)
+    # x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3)
+    # logger.debug(len(x_train))
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3)
 
-    # logger.info(f'Beginning Linear Regression Training')
-    # LR = LinearRegression().fit(x_train, y_train)
-    # predictions = LR.predict(x_test)
-    # mse = mean_squared_error(predictions, y_test)
-    # score = LR.score(x_test, y_test)
-    # # logger.info(f'First predictions')
-    # # [print(pred[:4]) for pred in predictions[:4]]
-    # # logger.info(f'Actual Values')
-    # # print(f'\n{y_test[:4]}')
-    # logger.info(f'Mean Squared Error for Test Set: {mse}')
-    # logger.info(f'R^2 Score: {score}')
-    # logger.success(f'Linear Regression Completed')
-    #
-    # logger.info(f'Beginning Random Forest Regression Training')
-    # RFR = RandomForestRegressor().fit(x_train, y_train)
-    # predictions = RFR.predict(x_test)
-    # mse = mean_squared_error(predictions, y_test)
-    # score = RFR.score(x_test, y_test)
-    # # logger.info(f'First predictions')
-    # # [print(pred[:4]) for pred in predictions[:4]]
-    # # logger.info(f'Actual Values')
-    # # print(f'\n{y_test[:4]}')
-    # logger.success(f'Mean Squared Error for Test Set: {mse}')
-    # logger.success(f'R^2 Score: {score}')
-    # logger.success(f'Random Forest Regression Completed')
+    logger.info(f'Beginning Linear Regression Training')
+    LR = LinearRegression().fit(x_train, y_train)
+    predictions = LR.predict(x_test)
+    mse = mean_squared_error(predictions, y_test)
+    score = LR.score(x_test, y_test)
+    if args.verbose:
+        logger.info(f'First predictions')
+        [print(pred) for pred in predictions[:4]]
+        logger.info(f'Actual Values')
+        print(f'\n{y_test[:4]}')
+    logger.info(f'Mean Squared Error for Test Set: {mse}')
+    logger.info(f'R^2 Score: {score}')
+    logger.success(f'Linear Regression Completed')
 
-    # house_rep['candidate'].to_csv('candidates.csv', columns=['candidate'], index=False)
+    logger.info(f'Beginning Random Forest Regression Training')
+    RFR = RandomForestRegressor().fit(x_train, y_train)
+    predictions = RFR.predict(x_test)
+    mse = mean_squared_error(predictions, y_test)
+    score = RFR.score(x_test, y_test)
+    if args.verbose:
+        logger.info(f'First predictions')
+        [print(pred) for pred in predictions[:4]]
+        logger.info(f'Actual Values')
+        print(f'\n{y_test[:4]}')
+    logger.success(f'Mean Squared Error for Test Set: {mse}')
+    logger.success(f'R^2 Score: {score}')
+    logger.success(f'Random Forest Regression Completed')
