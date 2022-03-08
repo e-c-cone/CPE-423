@@ -8,6 +8,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
+from sklearn.metrics import accuracy_score
 from sklearn.decomposition import PCA
 
 import processing.load_data as load_data
@@ -19,6 +20,8 @@ def arguments():
 
     parser.add_argument("-v", "--verbose", default=False, action="store_true",
                         help="Include warning data")
+    parser.add_argument("-rd", "--reload_data", default=False, action="store_true",
+                        help="Reload data instead of using data saved on file")
 
     return parser.parse_args()
 
@@ -46,7 +49,7 @@ if __name__ == "__main__":
     # Linear Regression algorithm. We start by generating the possible outputs (percentage of votes for each party)
     # and continue by adding the GDP and Income data. This is not expected to be very accurate.
 
-    x, y = generate_dataset(cutoff_year, args.verbose)
+    x, y = generate_dataset(cutoff_year, args.verbose, args.reload_data)
 
     # house_rep['year_and_state'] = house_rep['year'].astype(str) + '_' + str(house_rep['state_fips'])
     # elections = pd.DataFrame(house_rep['year_and_state'].unique(), columns=['year_and_state']).set_index(
@@ -103,9 +106,9 @@ if __name__ == "__main__":
     score = LR.score(x_test, y_test)
     if args.verbose:
         logger.info(f'First predictions')
-        [print(pred) for pred in predictions[:4]]
+        [print(pred) for pred in predictions[:1]]
         logger.info(f'Actual Values')
-        print(f'\n{y_test[:4]}')
+        print(f'\n{y_test[:1]}')
     logger.info(f'Mean Squared Error for Test Set: {mse}')
     logger.info(f'R^2 Score: {score}')
     logger.success(f'Linear Regression Completed')
@@ -117,9 +120,9 @@ if __name__ == "__main__":
     score = RFR.score(x_test, y_test)
     if args.verbose:
         logger.info(f'First predictions')
-        [print(pred) for pred in predictions[:4]]
+        [print(pred) for pred in predictions[:1]]
         logger.info(f'Actual Values')
-        print(f'\n{y_test[:4]}')
+        print(f'\n{y_test[:1]}')
     logger.success(f'Mean Squared Error for Test Set: {mse}')
     logger.success(f'R^2 Score: {score}')
     logger.success(f'Random Forest Regression Completed')

@@ -142,29 +142,6 @@ def get_ratings(candidate_id: str, year: int = 2050, verbose: bool = False) -> l
         return False
 
 
-def find_possible_categories() -> pd.DataFrame:
-    """
-    Parse candidate folder to determine possible voting categories
-    """
-    logger.info("Identifying unique voting category names")
-
-    fpath = os.path.join("Votesmart", "sigs")
-    fpaths = [os.path.join(fpath, x) for x in os.listdir(fpath)]
-    categories = set([])
-
-    for fpath in fpaths:
-        try:
-            ratings = pd.read_csv(fpath)
-            if len(ratings.columns) > 3:
-                categories = categories.union(set(ratings['category_name_1'].unique()))
-        except KeyError:
-            None
-    logger.debug(categories)
-
-    logger.info("Unique categories printed to terminal")
-    return categories
-
-
 def get_population_data(year: int = 1990, state_fips: str = "", verbose: bool = False) -> list:
     """
     Returns demographic information for a given election by year and state fips code
@@ -229,6 +206,32 @@ def get_winner_ids(candidates: pd.DataFrame, year: int = 1995, state_fips: int =
                 if verbose:
                     logger.warning(f'UnicodeDecodeError:\t{state_abbr=}, {year=}')
     return list(ids)
+
+
+def vectorize_party(possible_parties: list, cand_party: str):
+    """
+    Takes possible parties as an input and returns a binary list for any match to a party
+    :param possible_parties:
+    :param cand_party:
+    :return:
+    """
+    vectorized_parties = []
+    for party in possible_parties:
+        if party == cand_party:
+            vectorized_parties += [1]
+        else:
+            vectorized_parties += [0]
+    return vectorized_parties
+
+
+def get_taxes(year: int = 1995, state_fips: int = 1, verbose: bool = False):
+    # TODO
+    return None
+
+
+def get_election_district(year: int, fips_code: int, verbose: bool = False) -> int:
+    # TODO
+    return 0
 
 
 def test():

@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+from loguru import logger
 
 
 def get_fips(abbreviation: str = "", state: str = "") -> int:
@@ -57,3 +58,36 @@ def get_state_abbr(name: str = "", fips: int = 0) -> str:
         abbr = abbr['abbreviation']
         return list(abbr)[0]
     return ""
+
+
+def find_possible_categories() -> pd.DataFrame:
+    """
+    Parse candidate folder to determine possible voting categories
+    """
+    logger.info("Identifying unique voting category names")
+
+    fpath = os.path.join("Votesmart", "sigs")
+    fpaths = [os.path.join(fpath, x) for x in os.listdir(fpath)]
+    categories = set([])
+
+    for fpath in fpaths:
+        try:
+            ratings = pd.read_csv(fpath)
+            if len(ratings.columns) > 3:
+                categories = categories.union(set(ratings['category_name_1'].unique()))
+        except KeyError:
+            None
+    logger.debug(categories)
+
+    logger.info("Unique categories printed to terminal")
+    return categories
+
+
+def find_possible_parties(candidates: pd.DataFrame) -> list:
+    """
+    Find a list of all possible parties
+    :param candidates:
+    :return:
+    """
+    return list(candidates['party'].unique())
+
