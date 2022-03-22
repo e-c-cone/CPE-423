@@ -24,7 +24,7 @@ POSSIBLE_RATING_CATEGORIES = {'Social', 'Civil Liberties and Civil Rights', 'Soc
                               'Economy and Fiscal', 'Higher Education'}
 TEMPLATE_RATING_DICT = {key: 0 for key in POSSIBLE_RATING_CATEGORIES}
 PERSONAL_INCOME_BY_STATE = pd.read_csv(os.path.join('data', 'SAINC1__ALL_AREAS_1929_2020.csv'))
-DEMOGRAPHICS = pd.read_csv(os.path.join('data', '90sData.csv'))
+DEMOGRAPHICS = pd.read_csv(os.path.join('data', '90sData.csv'), encoding='latin-1')
 DEMOGRAPHICS = DEMOGRAPHICS.groupby(['Year of Estimate', 'FIPS State']).sum().reset_index()
 
 
@@ -46,7 +46,6 @@ def get_candidates(cutoff_year: int = 1900) -> pd.DataFrame:
     string_dtypes = house_rep.convert_dtypes().select_dtypes("string")
     house_rep[string_dtypes.columns] = string_dtypes.apply(lambda x: x.str.lower())
     logger.success(f"House Representatives loaded")
-    # print(house_rep)
     return house_rep
 
 
@@ -153,9 +152,8 @@ def get_population_data(year: int = 1990, state_fips: str = "", verbose: bool = 
     try:
         demographics = DEMOGRAPHICS[DEMOGRAPHICS['Year of Estimate'] == year]
         demographics = demographics[demographics['FIPS State'] == state_fips]
-        # print(list(demographics.T[demographics.columns[0]]))
-        # print(list(demographics.to_numpy()[0][3:]))
         demographics = demographics.to_numpy()[0][3:]/100
+        demographics2 = demographics / np.sum(demographics)
     except FileNotFoundError:
         if verbose:
             logger.warning(f'FileNotFoundError:\tException processing 90sData.csv on {year=}, for {state_fips}')
@@ -164,19 +162,21 @@ def get_population_data(year: int = 1990, state_fips: str = "", verbose: bool = 
         if verbose:
             logger.warning(f'IndexError:\t\tException processing 90sData.csv on {year=}, for {state_fips}')
             return None
-    return list(demographics)
+    return list(demographics + demographics2)
 
 
-def get_winner_ids(candidates: pd.DataFrame, year: int = 1995, state_fips: int = 1, verbose: bool = False) -> list:
+def get_winner_data(candidates: pd.DataFrame, year: int = 1995, state_fips: int = 1, verbose: bool = False) -> list:
     """
-    Identifies the winning political candidate from a specified year and state and returns the candidate_id
+    Identifies the winning political candidate from a specified year and state and returns the candidate_ids
     :param verbose:
     :param candidates:
     :param year:
     :param state_fips:
     :return:
     """
+
     ids = []
+    parties = []
     state_abbr = utils.get_state_abbr(fips=state_fips)
     candidates = pd.DataFrame(candidates[candidates['year'] == year])
 
@@ -184,33 +184,47 @@ def get_winner_ids(candidates: pd.DataFrame, year: int = 1995, state_fips: int =
     candidates = candidates.sort_values('candidatevotes', ascending=False).drop_duplicates(['year', 'state_fips', 'district'])
 
     if not candidates.empty:
+        all_parties = list(candidates['party'])
         candidates = list(candidates['candidate'])
-        candidates = [''.join(filter(str.isalnum, cand.split(' ')[-1])) for cand in candidates]
+        candidates = [candidate.split(' ') for candidate in candidates]
+        candidates = [[re.sub(r'[a-zA-Z]*[^a-zA-Z]+[a-zA-Z]*', '', name_seg) for name_seg in candidate] for candidate in
+                      candidates]
+        candidates = [[re.sub(r'^(ii)|(iii)|(jr)|(sr)$', '', name_seg) for name_seg in candidate] for candidate in
+                      candidates]
+        candidates = [[name_seg for name_seg in candidate if name_seg] for candidate in candidates]
+        candidates = [candidate[0] + ' ' + candidate[-1] for candidate in candidates if candidate]
 
-        for candidate in candidates:
+        for i, candidate in enumerate(candidates):
             try:
-                fpath = os.path.join('Votesmart', 'cands', f'{candidate}.csv')
+                candidate = candidate.split(' ')
+                fpath = os.path.join('Votesmart', 'cands', f'{candidate[-1]}.csv')
                 candidate_info = pd.read_csv(fpath)
+                candidate_info = candidate_info[candidate_info['first_name'].str.lower() == candidate[0]]
                 candidate_info = candidate_info[candidate_info['election_year'] == year]
                 candidate_info = candidate_info[candidate_info['election_state_id'] == state_abbr]
+                candidate_info = candidate_info[candidate_info['election_office'] == 'U.S. House']
                 candidate_id = candidate_info['candidate_id']
-                # print(list(candidate_id))
+                parties += [all_parties[i]]
                 ids += list(candidate_id)
             except FileNotFoundError:
                 if verbose:
-                    logger.warning(f'FileNotFoundError:\t{state_abbr=}, {year=}')
+                    logger.warning(f'FileNotFoundError:\t{state_abbr=}, {year=}, {candidate=}')
+                    # df = pd.read_csv(os.path.join('Votesmart', 'candidates2.csv'))
+                    # df = df.append({"last_name": candidate[-1]}, ignore_index=True)
+                    # df.to_csv(os.path.join('Votesmart', 'candidates2.csv'))
             except IndexError:
                 if verbose:
                     logger.warning(f'IndexError:\t\t{state_abbr=}, {year=}')
             except UnicodeDecodeError:
                 if verbose:
                     logger.warning(f'UnicodeDecodeError:\t{state_abbr=}, {year=}')
-    return list(ids)
+    ids = list(ids)
+    return ids, parties
 
 
 def vectorize_party(possible_parties: list, cand_party: str):
     """
-    Takes possible parties as an input and returns a binary list for any match to a party
+    Takes possible parties as an input to use One Hot encoding to vectorize party name
     :param possible_parties:
     :param cand_party:
     :return:

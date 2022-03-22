@@ -1,4 +1,5 @@
 import os
+import re
 import pandas as pd
 from loguru import logger
 
@@ -89,5 +90,57 @@ def find_possible_parties(candidates: pd.DataFrame) -> list:
     :param candidates:
     :return:
     """
-    return list(candidates['party'].unique())
+    result = []
+    candidates = list(candidates['party'].unique())
+    for cand in candidates:
+        try:
+            if cand:
+                result += [cand]
+        except TypeError:
+            logger.info(f'TypeError loading possible parties')
+    return result
 
+
+def get_proper_names(candidates: pd.DataFrame):
+    """
+    Extracts proper names
+    :param candidates:
+    :return:
+    """
+
+    # TODO - Implement better accented character handling
+    logger.info(f'Beginning proper name processing')
+
+    candidates = candidates['candidate'].tolist()
+    candidates = [candidate.split(' ') for candidate in candidates]
+    candidates = [[re.sub(r'[a-zA-Z]*[^a-zA-Z]+[a-zA-Z]*', '', name_seg) for name_seg in candidate] for candidate in
+                  candidates]
+    candidates = [[re.sub(r'^(ii)|(iii)|(jr)|(sr)$', '', name_seg) for name_seg in candidate] for candidate in
+                  candidates]
+    candidates = [[name_seg for name_seg in candidate if name_seg] for candidate in candidates]
+    lnames = [candidate[-1] for candidate in candidates if candidate]
+    lnames = pd.DataFrame({"last_name": lnames}).drop_duplicates(subset=['last_name'])
+    lnames.to_csv(os.path.join('Votesmart', 'candidates2.csv'))
+    candidates = [candidate[0] + ' ' + candidate[-1] for candidate in candidates if candidate]
+
+    logger.success(f'Loaded names successfully')
+    return candidates
+
+
+def generate_ids_from_cand_dir():
+    files = os.listdir(os.path.join("Votesmart", "cands"))
+    files = [os.path.join("Votesmart", "cands", fpath) for fpath in files]
+
+    cand_ids = []
+    for fpath in files:
+        try:
+            tmp = pd.read_csv(fpath)
+            cand_ids.extend(tmp["candidate_id"].to_list())
+        except:
+            print(f'Error loading data from {fpath}')
+
+    print(len(cand_ids))
+    df = pd.DataFrame(cand_ids, columns=['cand_id']).drop_duplicates(subset=['cand_id'])
+    print(len(df))
+    print(df.head())
+    df.to_csv('cand_ids.csv')

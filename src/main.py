@@ -4,13 +4,12 @@ import argparse
 import numpy as np
 import pandas as pd
 from loguru import logger
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, ElasticNet
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
-from sklearn.metrics import accuracy_score
-from sklearn.decomposition import PCA
 
+import utils
 import processing.load_data as load_data
 from processing.election_data import generate_dataset
 
@@ -31,6 +30,11 @@ if __name__ == "__main__":
 
     # Filter data to be after specified cutoff year
     cutoff_year = 1990
+    # house_reps = load_data.get_candidates(cutoff_year)
+    # print(utils.get_proper_names(house_reps))
+    # utils.generate_ids_from_cand_dir()
+
+    # exit()
 
     # # GDP by state by year
     # GDP_by_state = pd.read_csv(os.path.join('data', 'SAGDP1__ALL_AREAS_1997_2020.csv'), sep=',', encoding='latin-1')
@@ -97,21 +101,35 @@ if __name__ == "__main__":
     #         exit()
     # x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3)
     # logger.debug(len(x_train))
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3)
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
 
     logger.info(f'Beginning Linear Regression Training')
     LR = LinearRegression().fit(x_train, y_train)
     predictions = LR.predict(x_test)
-    mse = mean_squared_error(predictions, y_test)
-    score = LR.score(x_test, y_test)
+    mse = mean_squared_error(predictions, y_test) / len(predictions)
+    score = LR.score(x_test, y_test) / len(predictions)
     if args.verbose:
         logger.info(f'First predictions')
-        [print(pred) for pred in predictions[:1]]
+        print(f'\n{predictions[:1]}')
         logger.info(f'Actual Values')
         print(f'\n{y_test[:1]}')
     logger.info(f'Mean Squared Error for Test Set: {mse}')
     logger.info(f'R^2 Score: {score}')
     logger.success(f'Linear Regression Completed')
+
+    logger.info(f'Beginning Elastic Net Training')
+    EN = ElasticNet().fit(x_train, y_train)
+    predictions = EN.predict(x_test)
+    mse = mean_squared_error(predictions, y_test)
+    score = EN.score(x_test, y_test)
+    if args.verbose:
+        logger.info(f'First predictions')
+        print(f'\n{predictions[:1]}')
+        logger.info(f'Actual Values')
+        print(f'\n{y_test[:1]}')
+    logger.info(f'Mean Squared Error for Test Set: {mse}')
+    logger.info(f'R^2 Score: {score}')
+    logger.success(f'Elastic Net Completed')
 
     logger.info(f'Beginning Random Forest Regression Training')
     RFR = RandomForestRegressor().fit(x_train, y_train)

@@ -11,8 +11,8 @@ if(!key_exists) knitr::knit_exit()
 suppressPackageStartupMessages(library(dplyr))
 conflicted::conflict_prefer("filter", "dpylr")
 
-# lnames = read.csv("candidates.csv")
-# 
+lnames = read.csv("candidates2.csv")
+
 # for(lname in lnames$last_name) {
 #   fpath = paste(paste("cands/",lname,sep=""),".csv", sep="")
 #   if(!file.exists(fpath)) {
@@ -51,11 +51,12 @@ for(id in ids) {
     tryCatch({
       tmp <- tmp %>% select(-c("rating_text"))
       write.csv(tmp, fpath)
+      print("success")
     },
     error=function(cond){
       # print(cond)
-      print("Error encountered")
-      print(tmp)
+      # print("Error encountered")
+      # print(tmp)
       write.csv(id, fpath)
     })
   }
