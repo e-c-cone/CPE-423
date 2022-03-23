@@ -26,8 +26,8 @@ TEMPLATE_RATING_DICT = {key: 0 for key in POSSIBLE_RATING_CATEGORIES}
 PERSONAL_INCOME_BY_STATE = pd.read_csv(os.path.join('data', 'SAINC1__ALL_AREAS_1929_2020.csv'))
 DEMOGRAPHICS = pd.read_csv(os.path.join('data', '90sData.csv'), encoding='latin-1')
 DEMOGRAPHICS = DEMOGRAPHICS.groupby(['Year of Estimate', 'FIPS State']).sum().reset_index()
-STATE_INCOME_TAX = pd.read_csv(os.path.join('data', 'TBD_STATE_INCOME_TAX.csv'))
-FEDERAL_INCOME_TAX = pd.read_csv(os.path.join('data', 'TBD_FEDERAL_INCOME_TAX.csv'))
+#STATE_INCOME_TAX = pd.read_csv(os.path.join('data', 'TBD_STATE_INCOME_TAX.csv'))
+#FEDERAL_INCOME_TAX = pd.read_csv(os.path.join('data', 'TBD_FEDERAL_INCOME_TAX.csv'))
         
 
 

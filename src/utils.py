@@ -2,6 +2,7 @@ import os
 import re
 import pandas as pd
 from loguru import logger
+import matplotlib.pyplot as plt
 
 
 def get_fips(abbreviation: str = "", state: str = "") -> int:
@@ -144,3 +145,10 @@ def generate_ids_from_cand_dir():
     print(len(df))
     print(df.head())
     df.to_csv('cand_ids.csv')
+    
+def compare_prediction_to_actual(predx, predy, actualx, actualy):
+    plt.plot(predx, predy,label='Prediction')
+    plt.plot(actualx,actualy,label='Actual')
+    plt.legend(loc='upper right')
+    plt.savefig(os.path.join('plots','data.png'))
+    

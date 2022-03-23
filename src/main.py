@@ -12,6 +12,7 @@ from sklearn.metrics import mean_squared_error
 import utils
 import processing.load_data as load_data
 from processing.election_data import generate_dataset
+from utils import compare_prediction_to_actual
 
 
 def arguments():
