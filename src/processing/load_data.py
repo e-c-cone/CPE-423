@@ -5,6 +5,8 @@ import numpy as np
 from loguru import logger
 import utils
 
+pd.options.mode.chained_assignment = None
+
 POSSIBLE_RATING_CATEGORIES = {'Social', 'Civil Liberties and Civil Rights', 'Socially Conservative', 'Religion',
                               'Socially Liberal', 'Drugs', 'Science, Technology and Communication', 'Conservative',
                               'Elections', 'Sexual Orientation and Gender Identity', 'Abortion', 'Agriculture and Food',
@@ -21,7 +23,7 @@ POSSIBLE_RATING_CATEGORIES = {'Social', 'Civil Liberties and Civil Rights', 'Soc
                               'Fiscally Conservative', 'Family', 'Legislative Branch', 'Budget, Spending and Taxes',
                               'Employment and Affirmative Action', 'Women', 'Judicial Branch', 'Veterans', 'Trade',
                               'Immigration', 'Liberal', 'Housing and Property', 'Government Budget and Spending',
-                              'Economy and Fiscal', 'Higher Education'}
+                              'Economy and Fiscal', 'Higher Education', 'K-12 Education', 'National Security'}
 TEMPLATE_RATING_DICT = {key: 0 for key in POSSIBLE_RATING_CATEGORIES}
 PERSONAL_INCOME_BY_STATE = pd.read_csv(os.path.join('data', 'SAINC1__ALL_AREAS_1929_2020.csv'))
 DEMOGRAPHICS = pd.read_csv(os.path.join('data', '90sData.csv'), encoding='latin-1')
@@ -96,38 +98,45 @@ def get_ratings(candidate_id: str, year: int = 2050, verbose: bool = False) -> l
     :return:
     """
     try:
-        ratings = load_by_candidate_id(candidate_id=candidate_id, year=year, verbose=verbose)
-        ratings['timespan'] = pd.to_numeric(ratings['timespan'].astype(str).str[0:4])
-        ratings = ratings[ratings['timespan'] <= int(year)]
-        ratings['rating'] = ((ratings.rating.astype(str).str.replace(r'^[^0-9]*$', '0.5', regex=True)).astype(float) / 50) - 1
-        ratings = ratings.rename(columns=lambda x: re.sub(r'^[a-zA-Z_]*name_', 'category_name_', x))
-        ratings = ratings.rename(columns=lambda x: re.sub(r'^[a-zA-Z_]*id_', 'category_id_', x))
+        if False and os.path.exists(os.path.join('Votesmart', 'sigs', f'{candidate_id}_p.csv')):
+            ratings = load_by_candidate_id(candidate_id=f'{candidate_id}_p', year=year, verbose=verbose)
+        else:
+            ratings = load_by_candidate_id(candidate_id=candidate_id, year=year, verbose=verbose)
+            ratings['timespan'] = pd.to_numeric(ratings['timespan'].astype(str).str[0:4])
+            ratings = ratings[ratings['timespan'] <= int(year)]
+            ratings['rating'] = ((ratings.rating.astype(str).str.replace(r'^[^0-9]*$', '0.5', regex=True)).astype(float) / 50) - 1
+            ratings = ratings.rename(columns=lambda x: re.sub(r'^[a-zA-Z_]*name_', 'category_name_', x))
+            ratings = ratings.rename(columns=lambda x: re.sub(r'^[a-zA-Z_]*id_', 'category_id_', x))
 
-        pivot_columns = ratings.columns[9::2]
-        temp = ratings.dropna(subset=['category_id_1'])
-        temp.drop(f'category_id_1', axis=1, inplace=True)
-        temp.drop(f'category_name_1', axis=1, inplace=True)
+            pivot_columns = ratings.columns[9:]
+            ratings = ratings.dropna(subset=['category_id_1', 'category_name_1'])
+            temp = ratings
 
-        for i in range(2, 2 + len(pivot_columns)):
-            temp = temp.dropna(subset=[f'category_id_{i}'])
-            temp = temp.to_dict('records')
-            for entry in temp:
-                entry['category_id_1'] = entry[f'category_id_{i}']
-                entry['category_name_1'] = entry[f'category_name_{i}']
-                ratings = ratings.append(entry, ignore_index=True)
-            temp = pd.DataFrame(temp)
-            ratings = ratings.drop(f'category_id_{i}', axis=1)
-            ratings = ratings.drop(f'category_name_{i}', axis=1)
+            for i in range(2, 2 + int(len(pivot_columns)/2)):
+                temp = temp.dropna(subset=[f'category_id_{i}', f'category_name_{i}'])
+                temp['category_name_1'] = temp[f'category_name_{i}']
+                temp['category_id_1'] = temp[f'category_id_{i}']
+                add_to_ratings = temp.drop(pivot_columns, axis=1).to_dict('records')
+                for entry in add_to_ratings:
+                    ratings = ratings.append(entry, ignore_index=True)
+            ratings = ratings.drop(pivot_columns, axis=1)
+            ratings.to_csv(os.path.join('Votesmart', 'sigs', f'{candidate_id}_p.csv'))
 
         ratings = ratings[['candidate_id', 'category_name_1', 'rating']]
-        ratings = ratings.groupby(['category_name_1']).mean().T
-        ratings = ratings.iloc[-1].to_dict()
 
-        result = TEMPLATE_RATING_DICT
-        for key in ratings.keys():
-            result[key] = ratings[key]
-        result = [float(result[key]) for key in result.keys()]
-        # print(result)
+        temp = TEMPLATE_RATING_DICT
+        for category in ratings['category_name_1'].unique():
+            temp[category] = list(ratings[ratings['category_name_1'] == category]['rating'].describe())
+
+        result = []
+        ratings_length = 8
+        for key, val in temp.items():
+            if type(val) == int:
+                val = [0 for i in range(ratings_length)]
+            elif type(val) == list:
+                val = [0 if x != x else x for x in val]
+            result += val
+
         return result
 
     except KeyError:

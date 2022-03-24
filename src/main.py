@@ -3,8 +3,10 @@ import argparse
 # import tensorflow as tf
 import numpy as np
 import pandas as pd
+import seaborn as sn
+import matplotlib.pyplot as plt
 from loguru import logger
-from sklearn.linear_model import LinearRegression, ElasticNet
+from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
@@ -27,6 +29,8 @@ def arguments():
 
 if __name__ == "__main__":
     args = arguments()
+    # utils.cluster_interest_groups()
+    # exit()
 
     # Filter data to be after specified cutoff year
     cutoff_year = 1990
@@ -117,20 +121,6 @@ if __name__ == "__main__":
     logger.info(f'R^2 Score: {score}')
     logger.success(f'Linear Regression Completed')
 
-    logger.info(f'Beginning Elastic Net Training')
-    EN = ElasticNet().fit(x_train, y_train)
-    predictions = EN.predict(x_test)
-    mse = mean_squared_error(predictions, y_test)
-    score = EN.score(x_test, y_test)
-    if args.verbose:
-        logger.info(f'First predictions')
-        print(f'\n{predictions[:1]}')
-        logger.info(f'Actual Values')
-        print(f'\n{y_test[:1]}')
-    logger.info(f'Mean Squared Error for Test Set: {mse}')
-    logger.info(f'R^2 Score: {score}')
-    logger.success(f'Elastic Net Completed')
-
     logger.info(f'Beginning Random Forest Regression Training')
     RFR = RandomForestRegressor().fit(x_train, y_train)
     predictions = RFR.predict(x_test)
@@ -144,3 +134,8 @@ if __name__ == "__main__":
     logger.success(f'Mean Squared Error for Test Set: {mse}')
     logger.success(f'R^2 Score: {score}')
     logger.success(f'Random Forest Regression Completed')
+
+    covMatrix = np.cov(x, bias=True)
+    # sn.heatmap(covMatrix, annot=True, fmt='g')
+    # plt.show()
+    np.savetxt('cov.csv', covMatrix, delimiter=',')

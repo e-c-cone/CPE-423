@@ -1,7 +1,10 @@
 import os
 import re
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 from loguru import logger
+from sklearn.cluster import KMeans
 
 
 def get_fips(abbreviation: str = "", state: str = "") -> int:
@@ -144,3 +147,23 @@ def generate_ids_from_cand_dir():
     print(len(df))
     print(df.head())
     df.to_csv('cand_ids.csv')
+
+
+def cluster_interest_groups():
+    """
+    Goes through all processed sig files and clusters interest groups together
+    :return:
+    """
+    sig = None
+    for fname in os.listdir(os.path.join('Votesmart', 'sigs')):
+        if '_p' in fname:
+            sig = pd.concat([sig, pd.read_csv(os.path.join('Votesmart', 'sigs', fname))])
+
+    if not os.path.exists(os.path.join('Votesmart', 'sigs', 'SIG_DATA.csv')):
+        sig['sig_id'].to_csv(os.path.join('Votesmart', 'sigs', 'ALL_SIG_IDS.csv'))
+        logger.warning('Sig ID file generated, run Votesmart script to generate name data')
+    else:
+        data = pd.read_csv(os.path.join('Votesmart', 'sig', 'SIG_DATA.csv'))
+
+
+

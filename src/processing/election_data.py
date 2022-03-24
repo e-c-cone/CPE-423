@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from loguru import logger
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 import utils
 import processing.load_data as load_data
 
@@ -71,21 +72,25 @@ def generate_dataset(cutoff_year: int = 1990, verbose: bool = False, reload_data
             pop = load_data.get_population_data(year=year, state_fips=state_fips, verbose=verbose)
             inc = load_data.get_personal_income(year=year, state_fips=state_fips, verbose=verbose)
             party = load_data.vectorize_party(POSSIBLE_PARTIES, data[election_winner]['party'])
-            rating = load_data.get_ratings(data[election_winner]['id'], election_winner.split('_')[1])
-            # print(len(pop), len(inc), len(party))
+            rating = load_data.get_ratings(data[election_winner]['id'], int(election_winner.split('_')[1]), verbose=verbose)
+            # print(rating)
             if pop and inc and party and rating:
-                X += [pop + inc + party]
+                X += [[year-1990] + pop + inc + party]
                 Y += [rating]
-            if not rating:
-                logger.warning(f'FUCK THE RATING ISNT WORKING {i=}, {election_winner=}')
+            # if not rating:
+            #     logger.warning(f'FUCK THE RATING ISNT WORKING {i=}, {election_winner=}')
 
         # Perform PCA on input data to reduce dimensionality
-        # pca = PCA(n_components='mle')
+        sc = StandardScaler()
+        pca1 = PCA(n_components='mle')
+        # pca2 = PCA(n_components='mle')
         if verbose:
-            logger.info(f'Before PCA: {np.array(X).shape=}, {np.array(Y).shape=}')
-        # X = pca.fit_transform(X)
-        # if verbose:
-        #     logger.info(f'After PCA:  {np.array(X).shape=}, {np.array(Y).shape=}')
+            logger.info(f'Before Processing: {np.array(X).shape=}, {np.array(Y).shape=}')
+        X = sc.fit_transform(X)
+        X = pca1.fit_transform(X)
+        # Y = pca2.fit_transform(Y)
+        if verbose:
+            logger.info(f'After Processing:  {np.array(X).shape=}, {np.array(Y).shape=}')
 
         # Save data as .json
         dataset = {"X": np.array(X).tolist(), "Y": np.array(Y).tolist()}
