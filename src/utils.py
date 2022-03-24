@@ -166,4 +166,8 @@ def cluster_interest_groups():
         data = pd.read_csv(os.path.join('Votesmart', 'sig', 'SIG_DATA.csv'))
 
 
-
+def compare_prediction_to_actual(predx, predy, actualx, actualy):
+    plt.plot(predx, predy,label='Prediction')
+    plt.plot(actualx,actualy,label='Actual')
+    plt.legend(loc='upper right')
+    plt.savefig(os.path.join('plots','data.png'))

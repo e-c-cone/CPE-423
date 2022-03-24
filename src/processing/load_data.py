@@ -28,6 +28,9 @@ TEMPLATE_RATING_DICT = {key: 0 for key in POSSIBLE_RATING_CATEGORIES}
 PERSONAL_INCOME_BY_STATE = pd.read_csv(os.path.join('data', 'SAINC1__ALL_AREAS_1929_2020.csv'))
 DEMOGRAPHICS = pd.read_csv(os.path.join('data', '90sData.csv'), encoding='latin-1')
 DEMOGRAPHICS = DEMOGRAPHICS.groupby(['Year of Estimate', 'FIPS State']).sum().reset_index()
+#STATE_INCOME_TAX = pd.read_csv(os.path.join('data', 'TBD_STATE_INCOME_TAX.csv'))
+#FEDERAL_INCOME_TAX = pd.read_csv(os.path.join('data', 'TBD_FEDERAL_INCOME_TAX.csv'))
+        
 
 
 def get_candidates(cutoff_year: int = 1900) -> pd.DataFrame:
@@ -247,10 +250,27 @@ def vectorize_party(possible_parties: list, cand_party: str):
     return vectorized_parties
 
 
-def get_taxes(year: int = 1995, state_fips: int = 1, verbose: bool = False):
-    # TODO
-    return None
-
+def get_taxes(year: int, state_fips: int, verbose: bool = False) -> list: 
+    """
+    Load tax information from directory and return as a list
+    :param verbose:
+    :param state_fips:
+    :param year:
+    """
+    if verbose:
+        print("You made a mistake calling this function...")
+    try:
+        #TODO Format income tax data
+        state_income_tax =  list(STATE_INCOME_TAX[STATE_INCOME_TAX["StateFips"] == state_fips][str(year)])
+        federal_income_tax = list(FEDERAL_INCOME_TAX[FEDERAL_INCOME_TAX[str(year)]])
+        combined_income_tax_info = federal_income_tax
+        combined_income_tax_info.append(state_income_tax)
+        #TODO Merge Federal and state into single list
+    except FileNotFoundError:
+        if verbose:
+            logger.warning(f'KeyError:\t\tException while loading income data for {year=}')
+    # print(list(combined_income_tax_info))
+    return combined_income_tax_info
 
 def get_election_district(year: int, fips_code: int, verbose: bool = False) -> int:
     # TODO
