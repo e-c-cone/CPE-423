@@ -7,7 +7,7 @@ from loguru import logger
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import utils
-import processing.load_data as load_data
+from processing.load_data import dataLoader
 
 
 def generate_dataset(cutoff_year: int = 1990, verbose: bool = False, reload_data: bool = False):
@@ -26,9 +26,10 @@ def generate_dataset(cutoff_year: int = 1990, verbose: bool = False, reload_data
                            f'n code with -rd or --reload_data to reload data. Reloading data despite missing argument.')
         logger.info('Generating viable dataset')
 
+        load_data = dataLoader(verbose=verbose, cutoff_year=cutoff_year)
+
         FIPS = pd.read_csv(os.path.join('data', 'FIPS.csv'))
         FIPS_POSSIBLE = FIPS['fips'].to_numpy()
-        house_rep = load_data.get_candidates(cutoff_year=cutoff_year)
 
         # Load winning ids into memory in order to retrieve ratings
         reps = []
@@ -36,7 +37,7 @@ def generate_dataset(cutoff_year: int = 1990, verbose: bool = False, reload_data
         for state in FIPS_POSSIBLE:
             for year in range(cutoff_year, 2000)[::2]:  # TODO - make this range longer when we have more data
                 winner_ids, parties = \
-                    load_data.get_winner_data(candidates=house_rep, year=year, state_fips=state, verbose=verbose)
+                    load_data.get_winner_data(year=year, state_fips=state, verbose=verbose)
                 for i, id in enumerate(winner_ids):
                     try:
                         data[f'{state}_{year}_{i}'] = {"id": id, "party": parties[i]}
@@ -53,7 +54,6 @@ def generate_dataset(cutoff_year: int = 1990, verbose: bool = False, reload_data
         Y = []
         data_size = len(data.keys())
         start = time.time()
-        POSSIBLE_PARTIES = utils.find_possible_parties(house_rep)
         for i, election_winner in enumerate(data.keys()):
 
             # Print information on estimated time remaining for data processing
@@ -71,14 +71,13 @@ def generate_dataset(cutoff_year: int = 1990, verbose: bool = False, reload_data
             year = int(election_winner.split('_')[1])
             pop = load_data.get_population_data(year=year, state_fips=state_fips, verbose=verbose)
             inc = load_data.get_personal_income(year=year, state_fips=state_fips, verbose=verbose)
-            party = load_data.vectorize_party(POSSIBLE_PARTIES, data[election_winner]['party'])
+            party = load_data.vectorize_party(data[election_winner]['party'])
             rating = load_data.get_ratings(data[election_winner]['id'], int(election_winner.split('_')[1]), verbose=verbose)
             # print(rating)
             if pop and inc and party and rating:
-                X += [[year-1990] + pop + inc + party]
+                X += [[year-1990] + [state_fips] + pop + inc + party]
                 Y += [rating]
-            # if not rating:
-            #     logger.warning(f'FUCK THE RATING ISNT WORKING {i=}, {election_winner=}')
+        load_data.save_processed_cand_data()
 
         # Perform PCA on input data to reduce dimensionality
         sc = StandardScaler()
@@ -93,14 +92,14 @@ def generate_dataset(cutoff_year: int = 1990, verbose: bool = False, reload_data
             logger.info(f'After Processing:  {np.array(X).shape=}, {np.array(Y).shape=}')
 
         # Save data as .json
-        dataset = {"X": np.array(X).tolist(), "Y": np.array(Y).tolist()}
+        dataset = {"X": np.array(X).tolist(), "Y": np.array(Y).tolist(), "keys": np.array(list(data.keys())).tolist()}
         with open(processed_fpath, 'w') as file:
             json.dump(dataset, file, indent=4)
             if verbose:
                 logger.success(f'File saved successfully to {processed_fpath}')
 
         logger.success(f'Loaded {len(X)} data samples into memory')
-        return X, Y
+        return X, Y, list(data.keys())
     else:
         logger.info('Loading dataset from file')
 
@@ -110,8 +109,9 @@ def generate_dataset(cutoff_year: int = 1990, verbose: bool = False, reload_data
             dataset = json.load(file)
         X = dataset["X"]
         Y = dataset["Y"]
+        keys = dataset["keys"]
 
         logger.success(f'Data was loaded successfully from {processed_fpath}.')
-        return X, Y
+        return X, Y, keys
 
 

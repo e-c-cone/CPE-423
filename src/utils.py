@@ -6,6 +6,24 @@ import matplotlib.pyplot as plt
 from loguru import logger
 from sklearn.cluster import KMeans
 
+POSSIBLE_RATING_CATEGORIES = {'Social', 'Civil Liberties and Civil Rights', 'Socially Conservative', 'Religion',
+                              'Socially Liberal', 'Drugs', 'Science, Technology and Communication', 'Conservative',
+                              'Elections', 'Sexual Orientation and Gender Identity', 'Abortion', 'Agriculture and Food',
+                              'Campaign Finance', 'Animals and Wildlife', 'Health Insurance', 'Transportation',
+                              'Technology and Communication', 'Infrastructure', 'Foreign Aid', 'Marriage',
+                              'Foreign Affairs', 'Energy', 'Natural Resources', 'Guns', 'Education',
+                              'Business, Consumers, and Employees', 'Constitution', 'Military Personnel', 'Legal',
+                              'Oil and Gas', 'Federal, State and Local Relations', 'Taxes', 'Business and Consumers',
+                              'Gambling and Gaming', 'Arts, Entertainment, and History', 'Environment', 'Marijuana',
+                              'Science', 'Minors and Children', 'Criminal Justice', 'Health and Health Care',
+                              'Unemployed and Low-Income', 'Government Operations', 'Food Processing and Sales',
+                              'Fiscally Liberal', 'Labor Unions', 'Senior Citizens', 'Impartial/Nonpartisan',
+                              'Finance and Banking', 'Reproduction', 'Defense', 'Entitlements and the Safety Net',
+                              'Fiscally Conservative', 'Family', 'Legislative Branch', 'Budget, Spending and Taxes',
+                              'Employment and Affirmative Action', 'Women', 'Judicial Branch', 'Veterans', 'Trade',
+                              'Immigration', 'Liberal', 'Housing and Property', 'Government Budget and Spending',
+                              'Economy and Fiscal', 'Higher Education', 'K-12 Education', 'National Security'}
+
 
 def get_fips(abbreviation: str = "", state: str = "") -> int:
     """
@@ -100,7 +118,7 @@ def find_possible_parties(candidates: pd.DataFrame) -> list:
             if cand:
                 result += [cand]
         except TypeError:
-            logger.info(f'TypeError loading possible parties')
+            logger.warning(f'TypeError loading possible parties')
     return result
 
 
@@ -149,25 +167,31 @@ def generate_ids_from_cand_dir():
     df.to_csv('cand_ids.csv')
 
 
-def cluster_interest_groups():
+def generate_sig_data_file():
     """
     Goes through all processed sig files and clusters interest groups together
     :return:
     """
-    sig = None
-    for fname in os.listdir(os.path.join('Votesmart', 'sigs')):
-        if '_p' in fname:
-            sig = pd.concat([sig, pd.read_csv(os.path.join('Votesmart', 'sigs', fname))])
+    sig_data_fpath = os.path.join('Votesmart', 'sig_agg', 'SIG_ALL_DATA.csv')
 
-    if not os.path.exists(os.path.join('Votesmart', 'sigs', 'SIG_DATA.csv')):
-        sig['sig_id'].to_csv(os.path.join('Votesmart', 'sigs', 'ALL_SIG_IDS.csv'))
-        logger.warning('Sig ID file generated, run Votesmart script to generate name data')
-    else:
-        data = pd.read_csv(os.path.join('Votesmart', 'sig', 'SIG_DATA.csv'))
+    if not os.path.exists(sig_data_fpath):
+        sig = None
+        for fname in os.listdir(os.path.join('Votesmart', 'sigs')):
+            if '_p' in fname:
+                sig = pd.concat([sig, pd.read_csv(os.path.join('Votesmart', 'sigs', fname))])
+
+        sig.to_csv(sig_data_fpath)
+        logger.warning('Sig Data file generated, run Votesmart script to generate name data')
+        pd.DataFrame(columns=POSSIBLE_RATING_CATEGORIES, index=sig['sig_id'].unique()).to_csv(os.path.join('Votesmart', 'sig_agg', 'SIG_FAVOR_TYPE.csv'))
+    # elif os.path.exists(data_fpath):
+    #     data = pd.read_csv(data_fpath)
+        # data.T.to_csv(data_fpath)
 
 
-def compare_prediction_to_actual(predx, predy, actualx, actualy):
-    plt.plot(predx, predy,label='Prediction')
-    plt.plot(actualx,actualy,label='Actual')
+def compare_prediction_to_actual(predy, actualy, fname: str = 'data'):
+    plt.bar([i for i in range(len(actualy))], actualy)
+    plt.scatter([i for i in range(len(predy))], predy)
+    plt.plot([i for i in range(len(predy))], abs(actualy-predy))
     plt.legend(loc='upper right')
-    plt.savefig(os.path.join('plots','data.png'))
+    plt.savefig(os.path.join('plots', f'{fname}.png'))
+    plt.clf()
