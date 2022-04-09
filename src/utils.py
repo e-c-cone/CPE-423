@@ -6,24 +6,6 @@ import matplotlib.pyplot as plt
 from loguru import logger
 from sklearn.cluster import KMeans
 
-POSSIBLE_RATING_CATEGORIES = {'Social', 'Civil Liberties and Civil Rights', 'Socially Conservative', 'Religion',
-                              'Socially Liberal', 'Drugs', 'Science, Technology and Communication', 'Conservative',
-                              'Elections', 'Sexual Orientation and Gender Identity', 'Abortion', 'Agriculture and Food',
-                              'Campaign Finance', 'Animals and Wildlife', 'Health Insurance', 'Transportation',
-                              'Technology and Communication', 'Infrastructure', 'Foreign Aid', 'Marriage',
-                              'Foreign Affairs', 'Energy', 'Natural Resources', 'Guns', 'Education',
-                              'Business, Consumers, and Employees', 'Constitution', 'Military Personnel', 'Legal',
-                              'Oil and Gas', 'Federal, State and Local Relations', 'Taxes', 'Business and Consumers',
-                              'Gambling and Gaming', 'Arts, Entertainment, and History', 'Environment', 'Marijuana',
-                              'Science', 'Minors and Children', 'Criminal Justice', 'Health and Health Care',
-                              'Unemployed and Low-Income', 'Government Operations', 'Food Processing and Sales',
-                              'Fiscally Liberal', 'Labor Unions', 'Senior Citizens', 'Impartial/Nonpartisan',
-                              'Finance and Banking', 'Reproduction', 'Defense', 'Entitlements and the Safety Net',
-                              'Fiscally Conservative', 'Family', 'Legislative Branch', 'Budget, Spending and Taxes',
-                              'Employment and Affirmative Action', 'Women', 'Judicial Branch', 'Veterans', 'Trade',
-                              'Immigration', 'Liberal', 'Housing and Property', 'Government Budget and Spending',
-                              'Economy and Fiscal', 'Higher Education', 'K-12 Education', 'National Security'}
-
 
 def get_fips(abbreviation: str = "", state: str = "") -> int:
     """
@@ -82,29 +64,6 @@ def get_state_abbr(name: str = "", fips: int = 0) -> str:
     return ""
 
 
-def find_possible_categories() -> pd.DataFrame:
-    """
-    Parse candidate folder to determine possible voting categories
-    """
-    logger.info("Identifying unique voting category names")
-
-    fpath = os.path.join("Votesmart", "sigs")
-    fpaths = [os.path.join(fpath, x) for x in os.listdir(fpath)]
-    categories = set([])
-
-    for fpath in fpaths:
-        try:
-            ratings = pd.read_csv(fpath)
-            if len(ratings.columns) > 3:
-                categories = categories.union(set(ratings['category_name_1'].unique()))
-        except KeyError:
-            None
-    logger.debug(categories)
-
-    logger.info("Unique categories printed to terminal")
-    return categories
-
-
 def find_possible_parties(candidates: pd.DataFrame) -> list:
     """
     Find a list of all possible parties
@@ -120,6 +79,9 @@ def find_possible_parties(candidates: pd.DataFrame) -> list:
         except TypeError:
             logger.warning(f'TypeError loading possible parties')
     return result
+
+
+# def find_possible_ratings
 
 
 def get_proper_names(candidates: pd.DataFrame):
@@ -149,6 +111,10 @@ def get_proper_names(candidates: pd.DataFrame):
 
 
 def generate_ids_from_cand_dir():
+    """
+    Finds all candidate IDs and merges into one file
+    :return:
+    """
     files = os.listdir(os.path.join("Votesmart", "cands"))
     files = [os.path.join("Votesmart", "cands", fpath) for fpath in files]
 
@@ -182,10 +148,29 @@ def generate_sig_data_file():
 
         sig.to_csv(sig_data_fpath)
         logger.warning('Sig Data file generated, run Votesmart script to generate name data')
-        pd.DataFrame(columns=POSSIBLE_RATING_CATEGORIES, index=sig['sig_id'].unique()).to_csv(os.path.join('Votesmart', 'sig_agg', 'SIG_FAVOR_TYPE.csv'))
+        pd.DataFrame(columns=sig['category_name_1'].unique(), index=sig['sig_id'].unique()).to_csv(os.path.join('Votesmart', 'sig_agg', 'SIG_FAVOR_TYPE.csv'))
     # elif os.path.exists(data_fpath):
     #     data = pd.read_csv(data_fpath)
         # data.T.to_csv(data_fpath)
+
+
+def generate_combined_2000s() -> None:
+    """
+    Combines all files in 2000s directory into 1 file for easier processing
+    :return:
+    """
+    logger.info(f'Merging 2000s data into 1 file')
+    directory = os.path.join('data', '2000s')
+    data = []
+    for file in os.listdir(directory):
+        fpath = os.path.join(directory, file)
+        df = pd.read_csv(fpath)
+        FIPS_State = re.findall(r'[1-9]+[0-9]*\.', file)[-1][:-1]
+        df['FIPS State'] = FIPS_State
+        data += [df]
+    data = pd.concat(data)
+    data.to_csv(os.path.join('data', '2000sData.csv'), index=False)
+    logger.success(f'Merge operation successful')
 
 
 def compare_prediction_to_actual(predy, actualy, fname: str = 'data'):

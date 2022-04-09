@@ -35,7 +35,7 @@ def generate_dataset(cutoff_year: int = 1990, verbose: bool = False, reload_data
         reps = []
         data = {}
         for state in FIPS_POSSIBLE:
-            for year in range(cutoff_year, 2000)[::2]:  # TODO - make this range longer when we have more data
+            for year in range(cutoff_year, 2010)[::2]:  # TODO - make this range longer when we have more data
                 winner_ids, parties = \
                     load_data.get_winner_data(year=year, state_fips=state, verbose=verbose)
                 for i, id in enumerate(winner_ids):
@@ -45,7 +45,7 @@ def generate_dataset(cutoff_year: int = 1990, verbose: bool = False, reload_data
                             reps += [id]
                     except IndexError:
                         logger.warning(f'IndexError for {id=}\tat index={i}')
-                        print(winner_ids, parties)
+                        # print(winner_ids, parties)
         logger.success(f'There are {len(set(reps))} valid loaded representatives')
 
         # Load data from elections and merge into one dataset

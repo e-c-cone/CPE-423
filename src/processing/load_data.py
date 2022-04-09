@@ -7,7 +7,6 @@ import utils
 
 pd.options.mode.chained_assignment = None
 
-
 # STATE_INCOME_TAX = pd.read_csv(os.path.join('data', 'TBD_STATE_INCOME_TAX.csv'))
 # FEDERAL_INCOME_TAX = pd.read_csv(os.path.join('data', 'TBD_FEDERAL_INCOME_TAX.csv'))
 
@@ -20,44 +19,9 @@ class dataLoader:
         self.verbose = verbose
 
         self.personal_income_by_state = pd.read_csv(os.path.join('data', 'SAINC1__ALL_AREAS_1929_2020.csv'))
-        demographics = pd.read_csv(os.path.join('data', '90sData.csv'), encoding='latin-1')
+        demographics = pd.read_csv(os.path.join('data', 'Demographics1990_2010.csv'), encoding='latin-1')
         self.demographics = demographics.groupby(['Year of Estimate', 'FIPS State']).sum().reset_index()
         self.candidates = self.get_candidates()
-
-        self.possible_parties = utils.find_possible_parties(self.candidates)
-        self.possible_rating_categories = {'Social', 'Civil Liberties and Civil Rights', 'Socially Conservative',
-                                           'Religion',
-                                           'Socially Liberal', 'Drugs', 'Science, Technology and Communication',
-                                           'Conservative',
-                                           'Elections', 'Sexual Orientation and Gender Identity', 'Abortion',
-                                           'Agriculture and Food',
-                                           'Campaign Finance', 'Animals and Wildlife', 'Health Insurance',
-                                           'Transportation',
-                                           'Technology and Communication', 'Infrastructure', 'Foreign Aid', 'Marriage',
-                                           'Foreign Affairs', 'Energy', 'Natural Resources', 'Guns', 'Education',
-                                           'Business, Consumers, and Employees', 'Constitution', 'Military Personnel',
-                                           'Legal',
-                                           'Oil and Gas', 'Federal, State and Local Relations', 'Taxes',
-                                           'Business and Consumers',
-                                           'Gambling and Gaming', 'Arts, Entertainment, and History', 'Environment',
-                                           'Marijuana',
-                                           'Science', 'Minors and Children', 'Criminal Justice',
-                                           'Health and Health Care',
-                                           'Unemployed and Low-Income', 'Government Operations',
-                                           'Food Processing and Sales',
-                                           'Fiscally Liberal', 'Labor Unions', 'Senior Citizens',
-                                           'Impartial/Nonpartisan',
-                                           'Finance and Banking', 'Reproduction', 'Defense',
-                                           'Entitlements and the Safety Net',
-                                           'Fiscally Conservative', 'Family', 'Legislative Branch',
-                                           'Budget, Spending and Taxes',
-                                           'Employment and Affirmative Action', 'Women', 'Judicial Branch', 'Veterans',
-                                           'Trade',
-                                           'Immigration', 'Liberal', 'Housing and Property',
-                                           'Government Budget and Spending',
-                                           'Economy and Fiscal', 'Higher Education', 'K-12 Education',
-                                           'National Security'}
-        self.template_rating_dictionary = {key: 0 for key in self.possible_rating_categories}
 
         self.sig_data_fpath = os.path.join('Votesmart', 'sig_agg', 'ALL_SIG_DATA.csv')
         if os.path.exists(self.sig_data_fpath):
@@ -65,7 +29,10 @@ class dataLoader:
         else:
             self.ALL_SIG_DATA = pd.DataFrame(columns=['candidate_id', 'sig_id', 'sig_name', 'rating', 'rating_name',
                                                       'timespan', 'category_id', 'category_name'])
+        self.possible_rating_categories = self.ALL_SIG_DATA['category_name_1'].unique()
         self.loaded_cand_ids = self.ALL_SIG_DATA['candidate_id'].unique()
+        self.template_rating_dictionary = {key: 0 for key in self.possible_rating_categories}
+        self.possible_parties = utils.find_possible_parties(self.candidates)
 
         self.missing_cand_ids = []
 
@@ -230,11 +197,11 @@ class dataLoader:
             demographics2 = demographics / np.sum(demographics)
         except FileNotFoundError:
             if verbose:
-                logger.warning(f'FileNotFoundError:\tException processing 90sData.csv on {year=}, for {state_fips}')
+                logger.warning(f'FileNotFoundError:\tException processing demographics on {year=}, for {state_fips}')
                 return None
         except IndexError:
             if verbose:
-                logger.warning(f'IndexError:\t\tException processing 90sData.csv on {year=}, for {state_fips}')
+                logger.warning(f'IndexError:\t\tException processing demographics on {year=}, for {state_fips}')
                 return None
         return list(demographics + demographics2)
 
