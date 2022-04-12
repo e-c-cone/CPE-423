@@ -1,7 +1,10 @@
 import os
 import re
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 from loguru import logger
+from sklearn.cluster import KMeans
 
 
 def get_fips(abbreviation: str = "", state: str = "") -> int:
@@ -61,29 +64,6 @@ def get_state_abbr(name: str = "", fips: int = 0) -> str:
     return ""
 
 
-def find_possible_categories() -> pd.DataFrame:
-    """
-    Parse candidate folder to determine possible voting categories
-    """
-    logger.info("Identifying unique voting category names")
-
-    fpath = os.path.join("Votesmart", "sigs")
-    fpaths = [os.path.join(fpath, x) for x in os.listdir(fpath)]
-    categories = set([])
-
-    for fpath in fpaths:
-        try:
-            ratings = pd.read_csv(fpath)
-            if len(ratings.columns) > 3:
-                categories = categories.union(set(ratings['category_name_1'].unique()))
-        except KeyError:
-            None
-    logger.debug(categories)
-
-    logger.info("Unique categories printed to terminal")
-    return categories
-
-
 def find_possible_parties(candidates: pd.DataFrame) -> list:
     """
     Find a list of all possible parties
@@ -97,8 +77,11 @@ def find_possible_parties(candidates: pd.DataFrame) -> list:
             if cand:
                 result += [cand]
         except TypeError:
-            logger.info(f'TypeError loading possible parties')
+            logger.warning(f'TypeError loading possible parties')
     return result
+
+
+# def find_possible_ratings
 
 
 def get_proper_names(candidates: pd.DataFrame):
@@ -128,6 +111,10 @@ def get_proper_names(candidates: pd.DataFrame):
 
 
 def generate_ids_from_cand_dir():
+    """
+    Finds all candidate IDs and merges into one file
+    :return:
+    """
     files = os.listdir(os.path.join("Votesmart", "cands"))
     files = [os.path.join("Votesmart", "cands", fpath) for fpath in files]
 
@@ -144,3 +131,52 @@ def generate_ids_from_cand_dir():
     print(len(df))
     print(df.head())
     df.to_csv('cand_ids.csv')
+
+
+def generate_sig_data_file():
+    """
+    Goes through all processed sig files and clusters interest groups together
+    :return:
+    """
+    sig_data_fpath = os.path.join('Votesmart', 'sig_agg', 'SIG_ALL_DATA.csv')
+
+    if not os.path.exists(sig_data_fpath):
+        sig = None
+        for fname in os.listdir(os.path.join('Votesmart', 'sigs')):
+            if '_p' in fname:
+                sig = pd.concat([sig, pd.read_csv(os.path.join('Votesmart', 'sigs', fname))])
+
+        sig.to_csv(sig_data_fpath)
+        logger.warning('Sig Data file generated, run Votesmart script to generate name data')
+        pd.DataFrame(columns=sig['category_name_1'].unique(), index=sig['sig_id'].unique()).to_csv(os.path.join('Votesmart', 'sig_agg', 'SIG_FAVOR_TYPE.csv'))
+    # elif os.path.exists(data_fpath):
+    #     data = pd.read_csv(data_fpath)
+        # data.T.to_csv(data_fpath)
+
+
+def generate_combined_2000s() -> None:
+    """
+    Combines all files in 2000s directory into 1 file for easier processing
+    :return:
+    """
+    logger.info(f'Merging 2000s data into 1 file')
+    directory = os.path.join('data', '2000s')
+    data = []
+    for file in os.listdir(directory):
+        fpath = os.path.join(directory, file)
+        df = pd.read_csv(fpath)
+        FIPS_State = re.findall(r'[1-9]+[0-9]*\.', file)[-1][:-1]
+        df['FIPS State'] = FIPS_State
+        data += [df]
+    data = pd.concat(data)
+    data.to_csv(os.path.join('data', '2000sData.csv'), index=False)
+    logger.success(f'Merge operation successful')
+
+
+def compare_prediction_to_actual(predy, actualy, fname: str = 'data'):
+    plt.bar([i for i in range(len(actualy))], actualy)
+    plt.scatter([i for i in range(len(predy))], predy)
+    plt.plot([i for i in range(len(predy))], abs(actualy-predy))
+    plt.legend(loc='upper right')
+    plt.savefig(os.path.join('plots', f'{fname}.png'))
+    plt.clf()
