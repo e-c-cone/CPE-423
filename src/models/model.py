@@ -75,8 +75,9 @@ class Model:
         total_predictions = []
 
         for key, model in self.models.items():
-            prediction = model.predict(x_test)
-
+            prediction = np.array(model.predict(x_test))
+            prediction = np.clip(prediction, -1, 1)
+            
             if self.verbose:
                 logger.info(f'Testing {model.name}')
                 err = mse(prediction, y_test)

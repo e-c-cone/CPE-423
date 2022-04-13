@@ -50,7 +50,8 @@ def generate_dataset(cutoff_year: int = 1990, verbose: bool = False, reload_data
 
         # Load data from elections and merge into one dataset
         logger.info('Merging datasets')
-        X = []
+        x_categorical = []
+        x_quantitative = []
         Y = []
         data_size = len(data.keys())
         start = time.time()
@@ -69,13 +70,19 @@ def generate_dataset(cutoff_year: int = 1990, verbose: bool = False, reload_data
             # Load data for each election and add to running dataset
             state_fips = int(election_winner.split('_')[0])
             year = int(election_winner.split('_')[1])
+
             pop = load_data.get_population_data(year=year, state_fips=state_fips, verbose=verbose)
             inc = load_data.get_personal_income(year=year, state_fips=state_fips, verbose=verbose)
-            party = load_data.vectorize_party(data[election_winner]['party'])
+            tax_burden = load_data.get_tax_burden_data(year=year, state_fips=state_fips, verbose=verbose)
             rating = load_data.get_ratings(data[election_winner]['id'], int(election_winner.split('_')[1]), verbose=verbose)
-            # print(rating)
-            if pop and inc and party and rating:
-                X += [[year-1990] + [state_fips] + pop + inc + party]
+            marijuana_status = load_data.get_marijuana_legalization_status(year=year, state_fips=state_fips, verbose=verbose)
+            previous_election_ratings = load_data.get_ratings(data[election_winner]['id'], int(election_winner.split('_')[1])-2, verbose=verbose)
+
+            if pop and inc and tax_burden and rating and previous_election_ratings:
+                x_quantitative += [pop + inc + tax_burden + previous_election_ratings]
+                # randomized_x = np.multiply(quant_data, np.random.normal(1, 0.05, np.array(quant_data).shape)).tolist()
+                # print(np.array(randomized_x).shape)
+                x_categorical += [[year-2000] + [state_fips] + marijuana_status]
                 Y += [rating]
         load_data.save_processed_cand_data()
 
@@ -84,22 +91,27 @@ def generate_dataset(cutoff_year: int = 1990, verbose: bool = False, reload_data
         pca1 = PCA(n_components='mle')
         # pca2 = PCA(n_components='mle')
         if verbose:
-            logger.info(f'Before Processing: {np.array(X).shape=}, {np.array(Y).shape=}')
-        X = sc.fit_transform(X)
-        X = pca1.fit_transform(X)
+            logger.info(f'Before Processing: {np.array(x_quantitative).shape=}, {np.array(Y).shape=}')
+        x_quantitative = sc.fit_transform(x_quantitative)
+        x_quantitative = pca1.fit_transform(x_quantitative)
         # Y = pca2.fit_transform(Y)
         if verbose:
-            logger.info(f'After Processing:  {np.array(X).shape=}, {np.array(Y).shape=}')
+            logger.info(f'After Processing:  {np.array(x_quantitative).shape=}, {np.array(Y).shape=}')
+
+        X = np.array(np.concatenate((x_quantitative, x_categorical), axis=1))
+        # X = np.multiply(X, np.random.normal(1, 0.05, X))
+        if verbose:
+            logger.info(f'After Processing:  {X.shape=}')
 
         # Save data as .json
-        dataset = {"X": np.array(X).tolist(), "Y": np.array(Y).tolist(), "keys": np.array(list(data.keys())).tolist()}
+        dataset = {"X": X.tolist(), "Y": np.array(Y).tolist(), "keys": np.array(list(data.keys())).tolist()}
         with open(processed_fpath, 'w') as file:
             json.dump(dataset, file, indent=4)
             if verbose:
                 logger.success(f'File saved successfully to {processed_fpath}')
 
         logger.success(f'Loaded {len(X)} data samples into memory')
-        return list(X), list(Y), list(data.keys())
+        return X, np.array(Y), list(data.keys())
     else:
         logger.info('Loading dataset from file')
 

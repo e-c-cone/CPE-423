@@ -11,8 +11,9 @@ class LinearRegressor:
         self.name = name
         # self.scaler = StandardScaler()
 
-    def fit(self, x_train, y_train):
-        # x_train = self.scaler.fit_transform(x_train)
+    def fit(self, x_train, y_train, x=None):
+        # if x:
+        #     x_train = self.scaler.fit_transform(x_train)
         self.model.fit(x_train, y_train)
 
     def score(self, x_test, y_test):

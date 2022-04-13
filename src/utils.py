@@ -10,14 +10,15 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import mean_squared_error
 
 
-def get_fips(abbreviation: str = "", state: str = "") -> int:
+def get_fips(relationship_table: pd.DataFrame, abbreviation: str = "", state: str = "") -> int:
     """
     Finds the state FIPs code when given a state abbreviation or name
+    :param relationship_table:
     :param abbreviation:
     :param state:
     :return:
     """
-    relationship_table = pd.read_csv(os.path.join('data', 'FIPS.csv'))
+    # relationship_table = pd.read_csv(os.path.join('data', 'FIPS.csv'))
     if abbreviation:
         code = relationship_table[relationship_table['abbreviation'] == abbreviation]
         code = code['fips']
@@ -29,14 +30,15 @@ def get_fips(abbreviation: str = "", state: str = "") -> int:
     return 0
 
 
-def get_state_name(abbreviation: str = "", fips: int = 0) -> str:
+def get_state_name(relationship_table: pd.DataFrame, abbreviation: str = "", fips: int = 0) -> str:
     """
     Finds the state name when given a state abbreviation or fips code
+    :param relationship_table:
     :param fips:
     :param abbreviation:
     :return:
     """
-    relationship_table = pd.read_csv(os.path.join('data', 'FIPS.csv'))
+    # relationship_table = pd.read_csv(os.path.join('data', 'FIPS.csv'))
     if abbreviation:
         name = relationship_table[relationship_table['abbreviation'] == abbreviation]
         name = name['name']
@@ -48,14 +50,15 @@ def get_state_name(abbreviation: str = "", fips: int = 0) -> str:
     return ""
 
 
-def get_state_abbr(name: str = "", fips: int = 0) -> str:
+def get_state_abbr(relationship_table: pd.DataFrame, name: str = "", fips: int = 0) -> str:
     """
     Finds the state name when given a state abbreviation or fips code
+    :param relationship_table:
     :param fips:
     :param name:
     :return:
     """
-    relationship_table = pd.read_csv(os.path.join('data', 'FIPS.csv'))
+    # relationship_table = pd.read_csv(os.path.join('data', 'FIPS.csv'))
     if name:
         abbr = relationship_table[relationship_table['name'] == name]
         abbr = abbr['abbreviation']
@@ -129,10 +132,10 @@ def generate_ids_from_cand_dir():
         except:
             print(f'Error loading data from {fpath}')
 
-    print(len(cand_ids))
+    # print(len(cand_ids))
     df = pd.DataFrame(cand_ids, columns=['cand_id']).drop_duplicates(subset=['cand_id'])
-    print(len(df))
-    print(df.head())
+    # print(len(df))
+    # print(df.head())
     df.to_csv('cand_ids.csv')
 
 
@@ -223,7 +226,7 @@ def get_model_weights(errors: np.ndarray):
     for i, arr in enumerate(accuracy):
         arr = arr/np.sum(arr)
         arr = softmax(softmax(arr))
-        print(arr, '\n')
+        # print(arr, '\n')
         accuracy[i] = arr
 
     return accuracy.T

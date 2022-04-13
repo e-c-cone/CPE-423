@@ -22,6 +22,9 @@ class dataLoader:
         demographics = pd.read_csv(os.path.join('data', 'Demographics1990_2010.csv'), encoding='latin-1')
         self.demographics = demographics.groupby(['Year of Estimate', 'FIPS State']).sum().reset_index()
         self.candidates = self.get_candidates()
+        self.FIPS_relations = pd.read_csv(os.path.join('data', 'FIPS.csv'))
+        self.tax_burdens = pd.read_csv(os.path.join('data', 'tax_burden_by_state.csv'))
+        self.marijuana_legalization_status = pd.read_csv(os.path.join('data', 'marijuana_legalization_status.csv'))
 
         self.sig_data_fpath = os.path.join('Votesmart', 'sig_agg', 'ALL_SIG_DATA.csv')
         if os.path.exists(self.sig_data_fpath):
@@ -70,9 +73,9 @@ class dataLoader:
             # personal_income_by_state = pd.read_csv(os.path.join('data', 'SAINC1__ALL_AREAS_1929_2020.csv'))
             personal_income_by_state = list(
                 PERSONAL_INCOME_BY_STATE[PERSONAL_INCOME_BY_STATE['StateFips'] == state_fips][str(year)])
-            overall_us_income = list(PERSONAL_INCOME_BY_STATE[PERSONAL_INCOME_BY_STATE['StateFips'] == 0][str(year)])
-            personal_income_by_state = [20 * state / us for state, us in
-                                        zip(personal_income_by_state, overall_us_income)]
+            # overall_us_income = list(PERSONAL_INCOME_BY_STATE[PERSONAL_INCOME_BY_STATE['StateFips'] == 0][str(year)])
+            # personal_income_by_state = [20 * state / us for state, us in
+            #                             zip(personal_income_by_state, overall_us_income)]
         except FileNotFoundError:
             if verbose:
                 logger.warning(f'KeyError:\t\tException while loading income data for {state_fips=} and {year=}')
@@ -217,7 +220,7 @@ class dataLoader:
 
         ids = []
         parties = []
-        state_abbr = utils.get_state_abbr(fips=state_fips)
+        state_abbr = utils.get_state_abbr(self.FIPS_relations, fips=state_fips)
         candidates = pd.DataFrame(self.candidates[self.candidates['year'] == year])
 
         candidates = candidates[candidates['state_fips'] == state_fips]
@@ -307,3 +310,37 @@ class dataLoader:
 
         self.ALL_SIG_DATA.to_csv(self.sig_data_fpath, index=False)
         logger.success('Sig Data file generated, run Votesmart script to generate name data')
+
+    def get_tax_burden_data(self, year: int, state_fips: int, verbose: bool = False) -> list:
+        """
+        Finds tax burden data for given year and state
+        :param year:
+        :param state_fips:
+        :param verbose:
+        :return:
+        """
+        state_name = utils.get_state_name(self.FIPS_relations, fips=state_fips)
+        tax_burden = self.tax_burdens[self.tax_burdens['State'] == state_name]
+        tax_burden = tax_burden[tax_burden['Year'] == year]
+        tax_burden = tax_burden.drop(columns=['Year', 'State']).values.tolist()[0]
+
+        return tax_burden
+
+    def get_marijuana_legalization_status(self, year: int, state_fips: int, verbose: bool = False) -> list:
+        """
+        Returns vector detailing if state has legalized marijuana during a certain year
+        :param year:
+        :param state_fips:
+        :param verbose:
+        :return:
+        """
+        state_name = utils.get_state_name(self.FIPS_relations, fips=state_fips)
+        leg_status = self.marijuana_legalization_status[self.marijuana_legalization_status['State'] == state_name]
+        result = [-1, -1]
+        if (leg_status['Recreational'] <= year).any():
+            result[0] = 1
+        if (leg_status['Medicinal'] <= year).any():
+            result[1] = 1
+
+        return result
+
