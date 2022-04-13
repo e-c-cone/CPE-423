@@ -99,7 +99,7 @@ def generate_dataset(cutoff_year: int = 1990, verbose: bool = False, reload_data
                 logger.success(f'File saved successfully to {processed_fpath}')
 
         logger.success(f'Loaded {len(X)} data samples into memory')
-        return X, Y, list(data.keys())
+        return list(X), list(Y), list(data.keys())
     else:
         logger.info('Loading dataset from file')
 

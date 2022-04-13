@@ -1,10 +1,13 @@
 import os
 import re
 import pandas as pd
+import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from loguru import logger
+from scipy.special import softmax
 from sklearn.cluster import KMeans
+from sklearn.metrics import mean_squared_error
 
 
 def get_fips(abbreviation: str = "", state: str = "") -> int:
@@ -174,9 +177,53 @@ def generate_combined_2000s() -> None:
 
 
 def compare_prediction_to_actual(predy, actualy, fname: str = 'data'):
+    """
+    Plots the predicted and actual values for input data and graphs the difference between them
+    :param predy:
+    :param actualy:
+    :param fname:
+    :return:
+    """
     plt.bar([i for i in range(len(actualy))], actualy)
     plt.scatter([i for i in range(len(predy))], predy)
     plt.plot([i for i in range(len(predy))], abs(actualy-predy))
     plt.legend(loc='upper right')
     plt.savefig(os.path.join('plots', f'{fname}.png'))
     plt.clf()
+
+
+def mse_by_category(prediction, y):
+    """
+    Gets mse for a given prediction and accurate result. Can be used to weight models based on performance
+    :param prediction:
+    :param y:
+    :return:
+    """
+    prediction = prediction.T
+    y = np.array(y).T
+    mse = np.square(prediction - y)
+    mse = np.sum(mse, axis=1)
+    return mse
+
+
+def get_model_weights(errors: np.ndarray):
+    """
+    Gets the errors by rating as 2D np array, then transforms the array to obtain weights for weighted average of models
+    for each rating
+    :param errors:
+    :return:
+    """
+    for err in errors:
+        plt.plot([i for i in range(len(err))], err)
+        plt.show()
+        plt.clf()
+
+    accuracy = 1/(errors+0.0000001)
+    accuracy = accuracy.T
+    for i, arr in enumerate(accuracy):
+        arr = arr/np.sum(arr)
+        arr = softmax(softmax(arr))
+        print(arr, '\n')
+        accuracy[i] = arr
+
+    return accuracy.T
