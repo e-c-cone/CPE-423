@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from loguru import logger
 from scipy.special import softmax
 from sklearn.cluster import KMeans
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, r2_score
 
 
 def get_fips(relationship_table: pd.DataFrame, abbreviation: str = "", state: str = "") -> int:
@@ -209,23 +209,41 @@ def mse_by_category(prediction, y):
     return mse
 
 
-def get_model_weights(errors: np.ndarray):
+def r2_by_category(prediction, y):
+    """
+    Gets mse for a given prediction and accurate result. Can be used to weight models based on performance
+    :param prediction:
+    :param y:
+    :return:
+    """
+    prediction = prediction.T
+    y = np.array(y).T
+    r2_vals = []
+    for i, pred in enumerate(prediction):
+        r2_vals += [r2_score(y[i], pred)]
+    return np.array(r2_vals)
+
+
+def get_model_weights(r2_vals: np.ndarray):
     """
     Gets the errors by rating as 2D np array, then transforms the array to obtain weights for weighted average of models
     for each rating
     :param errors:
     :return:
     """
-    for err in errors:
-        plt.plot([i for i in range(len(err))], err)
+    for r2 in r2_vals:
+        plt.plot([i for i in range(len(r2))], r2)
         plt.show()
         plt.clf()
 
-    accuracy = 1/(errors+0.0000001)
-    accuracy = accuracy.T
+    # accuracy = 1/(errors+0.0000001)
+    accuracy = r2_vals.T
     for i, arr in enumerate(accuracy):
+        arr = np.clip(arr, 0, np.inf)
         arr = arr/np.sum(arr)
-        arr = softmax(softmax(arr))
+        # print(arr)
+        # arr = softmax(arr)
+        # print(arr, '\n')
         # print(arr, '\n')
         accuracy[i] = arr
 

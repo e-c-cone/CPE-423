@@ -2,12 +2,12 @@ import math
 import tensorflow as tf
 import numpy as np
 from loguru import logger
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, r2_score
 from models.linear_regression import LinearRegressor
 from models.random_forest import RandomForest
 from models.neural_network import NeuralNetwork
 
-from utils import mse_by_category, get_model_weights, compare_prediction_to_actual
+from utils import mse_by_category, r2_by_category, get_model_weights, compare_prediction_to_actual
 
 
 def mse(predicted, actual):
@@ -41,7 +41,8 @@ class Model:
                      'loss': tf.keras.losses.MeanSquaredError(),
                      'metrics': ['accuracy'],
                      'inp_shape': np.array(x_train).shape[1:],
-                     'out_shape': np.array(y_train).shape[1]}
+                     'out_shape': np.array(y_train).shape[1],
+                     'epochs': 14}
         }
         self.models = {
             "LiRe": LinearRegressor('LinearRegressor', **(self.hyperparams["LiRe"])),
@@ -60,12 +61,12 @@ class Model:
             if self.verbose:
                 logger.info(f'Training completed for {model.name}')
 
-        error = []
+        r2 = []
         for key in self.models.keys():
             predictions = self.models[key].predict(x_train)
-            error += [mse_by_category(predictions, y_train)]
+            r2 += [r2_by_category(predictions, y_train)]
 
-        weights = get_model_weights(np.array(error))
+        weights = get_model_weights(np.array(r2))
         for ind, key in enumerate(self.models.keys()):
             self.weights[key] = weights[ind]
 
@@ -82,9 +83,6 @@ class Model:
                 logger.info(f'Testing {model.name}')
                 err = mse(prediction, y_test)
                 score = model.score(x_test, y_test)
-                # if key == "LinearRegressor":
-                #     mse = math.sqrt(mse) / len(y_test)
-                #     score = math.sqrt(score) / len(y_test)
                 logger.success(f'{model.name} has {err=} and {score=}')
                 compare_prediction_to_actual(prediction[0], y_test[0], fname=model.name)
 
@@ -94,5 +92,6 @@ class Model:
         total_predictions = np.sum(total_predictions, axis=0)
         if self.verbose:
             err = mse(total_predictions, y_test)
-            logger.info(f'Aggregate Model has {err=}')
+            r2 = r2_score(y_test, total_predictions)
+            logger.info(f'Aggregate Model has {err=} and {r2=}')
         compare_prediction_to_actual(total_predictions[0], y_test[0], fname='aggregate')

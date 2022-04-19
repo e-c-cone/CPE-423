@@ -11,6 +11,10 @@ pd.options.mode.chained_assignment = None
 # FEDERAL_INCOME_TAX = pd.read_csv(os.path.join('data', 'TBD_FEDERAL_INCOME_TAX.csv'))
 
 
+class LoadError(Exception):
+    pass
+
+
 class dataLoader:
     def __init__(self, verbose=False, cutoff_year=1900):
         logger.info(f'Initializing dataLoader with cutoff_year {cutoff_year} while {verbose=}')
@@ -77,8 +81,8 @@ class dataLoader:
             # personal_income_by_state = [20 * state / us for state, us in
             #                             zip(personal_income_by_state, overall_us_income)]
         except FileNotFoundError:
-            if verbose:
-                logger.warning(f'KeyError:\t\tException while loading income data for {state_fips=} and {year=}')
+            raise LoadError(f'FileNotFoundError:\t\tException while loading income data for {state_fips=} and {year=} i'
+                            f'n load_data.get_personal_income()')
         # print(list(personal_income_by_state))
         return personal_income_by_state
 
@@ -92,10 +96,9 @@ class dataLoader:
         """
         fpath = os.path.join("Votesmart", "sigs", f'{candidate_id}.csv')
         if not os.path.exists(fpath):
-            if verbose:
-                logger.warning(f'File for {candidate_id=} in the years before {year} was not found at {fpath}')
             self.missing_cand_ids += [candidate_id]
-            return None
+            raise LoadError(f'File for {candidate_id=} in the years before {year} was not found at {fpath} in load_data'
+                            f'.load_by_candidate_id()')
         else:
             ratings = pd.read_csv(fpath)
         return ratings
@@ -173,14 +176,10 @@ class dataLoader:
                 self.loaded_cand_ids = self.ALL_SIG_DATA['candidate_id'].unique()
 
             except KeyError:
-                if verbose:
-                    logger.warning(f'KeyError:\t\tException processing {candidate_id=}')
-                return []
+                raise LoadError(f'KeyError:\t\tException processing {candidate_id=} in load_data.get_ratings()')
 
             except TypeError:
-                if verbose:
-                    logger.warning(f'TypeError:\t\tException processing {candidate_id=}')
-                return []
+                raise LoadError(f'TypeError:\t\tException processing {candidate_id=} in load_data.get_ratings()')
 
         result = self.process_ratings(self.ALL_SIG_DATA, candidate_id=candidate_id, year=year)
         return result
@@ -199,18 +198,17 @@ class dataLoader:
             demographics = demographics.to_numpy()[0][3:] / 100
             demographics2 = demographics / np.sum(demographics)
         except FileNotFoundError:
-            if verbose:
-                logger.warning(f'FileNotFoundError:\tException processing demographics on {year=}, for {state_fips}')
-                return None
+            raise LoadError(f'FileNotFoundError:\tException processing demographics on {year=}, for {state_fips} in loa'
+                            f'd_data.get_population_data()')
         except IndexError:
-            if verbose:
-                logger.warning(f'IndexError:\t\tException processing demographics on {year=}, for {state_fips}')
-                return None
+            raise LoadError(f'IndexError:\t\tException processing demographics on {year=}, for {state_fips} in load_dat'
+                            f'a.get_population_data()')
         return list(demographics + demographics2)
 
     def get_winner_data(self, year: int = 1995, state_fips: int = 1, verbose: bool = False) -> list:
         """
         Identifies the winning political candidate from a specified year and state and returns the candidate_ids
+        :param average:
         :param verbose:
         :param candidates:
         :param year:

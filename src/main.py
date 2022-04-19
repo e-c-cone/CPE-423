@@ -26,6 +26,7 @@ def arguments():
                         help="Include warning data")
     parser.add_argument("-rd", "--reload_data", default=False, action="store_true",
                         help="Reload data instead of using data saved on file")
+    parser.add_argument("-ex", "--exclude", action='store', help="Excludes a model")
 
     return parser.parse_args()
 
@@ -46,7 +47,10 @@ if __name__ == "__main__":
     x, y, keys = generate_dataset(cutoff_year, args.verbose, args.reload_data)
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
 
-    model = Model(verbose=verbose).fit(x_train, y_train)
+    if args.exclude:
+        model = Model(exclude=[args.exclude], verbose=verbose).fit(x_train, y_train)
+    else:
+        model = Model(verbose=verbose).fit(x_train, y_train)
     model.predict(x_test, y_test)
 
     ###  Train Models ###

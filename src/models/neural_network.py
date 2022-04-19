@@ -18,7 +18,7 @@ class NeuralNetwork:
         self.model.compile(self.optimizer, self.loss, self.metrics)
 
     def fit(self, x_train, y_train):
-        self.model.fit(x_train, y_train, epochs=40)
+        self.model.fit(x_train, y_train, epochs=self.epochs)
 
     def score(self, x_test, y_test):
         return self.model.evaluate(x_test, y_test)[1]

@@ -7,7 +7,7 @@ from loguru import logger
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import utils
-from processing.load_data import dataLoader
+from processing.load_data import dataLoader, LoadError
 
 
 def generate_dataset(cutoff_year: int = 1990, verbose: bool = False, reload_data: bool = False):
@@ -53,37 +53,51 @@ def generate_dataset(cutoff_year: int = 1990, verbose: bool = False, reload_data
         x_categorical = []
         x_quantitative = []
         Y = []
+        prev_err = None
         data_size = len(data.keys())
         start = time.time()
         for i, election_winner in enumerate(data.keys()):
 
             # Print information on estimated time remaining for data processing
-            if verbose and (i % int(data_size/20) == 0 or i == 10) and i > 0:
+            if verbose and (i % int(data_size / 20) == 0 or i == 10) and i > 0:
                 dur = time.time() - start
                 remaining = int(dur * (data_size - i) / i)
                 remaining = time.strftime("%H:%M:%S", time.gmtime(remaining))
                 logger.debug(f'Merging datasets... election winner {i} out of'
                              f' {data_size}: estimated time {remaining=}')
-            elif not verbose and (i % int(data_size/3) == 0 or i == 10) and i > 0:
+            elif not verbose and (i % int(data_size / 3) == 0 or i == 10) and i > 0:
                 logger.info(f'A total of {i}/{data_size} data points have been merged')
 
             # Load data for each election and add to running dataset
             state_fips = int(election_winner.split('_')[0])
             year = int(election_winner.split('_')[1])
+            district = int(election_winner.split('_')[2])
+            prev_election = str(state_fips) + '_' + str(year-2) + '_' + str(district)
 
-            pop = load_data.get_population_data(year=year, state_fips=state_fips, verbose=verbose)
-            inc = load_data.get_personal_income(year=year, state_fips=state_fips, verbose=verbose)
-            tax_burden = load_data.get_tax_burden_data(year=year, state_fips=state_fips, verbose=verbose)
-            rating = load_data.get_ratings(data[election_winner]['id'], int(election_winner.split('_')[1]), verbose=verbose)
-            marijuana_status = load_data.get_marijuana_legalization_status(year=year, state_fips=state_fips, verbose=verbose)
-            previous_election_ratings = load_data.get_ratings(data[election_winner]['id'], int(election_winner.split('_')[1])-2, verbose=verbose)
+            try:
+                pop = load_data.get_population_data(year=year, state_fips=state_fips, verbose=verbose)
+                inc = load_data.get_personal_income(year=year, state_fips=state_fips, verbose=verbose)
+                tax_burden = load_data.get_tax_burden_data(year=year, state_fips=state_fips, verbose=verbose)
+                rating = load_data.get_ratings(data[election_winner]['id'], int(election_winner.split('_')[1]),
+                                               verbose=verbose)
+                marijuana_status = load_data.get_marijuana_legalization_status(year=year, state_fips=state_fips,
+                                                                               verbose=verbose)
 
-            if pop and inc and tax_burden and rating and previous_election_ratings:
-                x_quantitative += [pop + inc + tax_burden + previous_election_ratings]
-                # randomized_x = np.multiply(quant_data, np.random.normal(1, 0.05, np.array(quant_data).shape)).tolist()
-                # print(np.array(randomized_x).shape)
-                x_categorical += [[year-2000] + [state_fips] + marijuana_status]
-                Y += [rating]
+                previous_election_ratings = load_data.get_ratings(data[prev_election]['id'],
+                                                                  year-2, verbose=verbose)
+
+                if pop and inc and tax_burden and rating and previous_election_ratings:
+                    x_quantitative += [pop + inc + tax_burden + previous_election_ratings]
+                    # randomized_x = np.multiply(quant_data, np.random.normal(1, 0.05, np.array(quant_data).shape)).tolist()
+                    # print(np.array(randomized_x).shape)
+                    x_categorical += [[year - 2000] + [state_fips] + marijuana_status]
+                    Y += [rating]
+            except LoadError as e:
+                if verbose and not e == prev_err:
+                    logger.warning(e)
+                    prev_err = e
+            except KeyError:
+                pass
         load_data.save_processed_cand_data()
 
         # Perform PCA on input data to reduce dimensionality
