@@ -188,4 +188,9 @@ class data_generator:
                 #             reps += [id]
                 #     except IndexError:
                 #         logger.warning(f'IndexError for {id=}\tat index={i}')
+                
+    def election_squish(self):
+    
+    #X [[w1 ,+ w2 ,+ pred]
+    #Y Correct (Binary Classification)
 
