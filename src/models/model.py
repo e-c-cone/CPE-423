@@ -1,4 +1,5 @@
 import math
+import random
 import tensorflow as tf
 import numpy as np
 from loguru import logger
@@ -72,7 +73,7 @@ class Model:
 
         return self
 
-    def predict(self, x_test, y_test):
+    def predict(self, x_test, y_test, second_best_ratings, election_ids):   # TODO
         total_predictions = []
 
         for key, model in self.models.items():
@@ -94,4 +95,5 @@ class Model:
             err = mse(total_predictions, y_test)
             r2 = r2_score(y_test, total_predictions)
             logger.info(f'Aggregate Model has {err=} and {r2=}')
-        compare_prediction_to_actual(total_predictions[0], y_test[0], fname='aggregate')
+        ind = random.randint(0, len(total_predictions))
+        compare_prediction_to_actual(total_predictions[ind], y_test[ind], fname='aggregate')

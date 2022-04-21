@@ -16,7 +16,7 @@ class LoadError(Exception):
 
 
 class dataLoader:
-    def __init__(self, verbose=False, cutoff_year=1900):
+    def __init__(self, verbose=False, cutoff_year=2010):
         logger.info(f'Initializing dataLoader with cutoff_year {cutoff_year} while {verbose=}')
 
         self.cutoff_year = cutoff_year
@@ -49,17 +49,16 @@ class dataLoader:
         Load representative data; this data will serve as the basis for the rest of the data
         It will be processed by converting each election into a unique identifier in the form of 'year_stateName'
         This can then be used to pull data from other sources where the year and state name match
-        :param cutoff_year:
+        :param include_best_loser:
         """
         house_rep = pd.read_csv(os.path.join('data', '1976_2020_house.csv'), sep=',', encoding='latin-1').dropna(
             subset=['candidate'])
         house_rep_cols = ["year", "state", "state_po", "state_fips", "state_cen", "state_ic", "office", "district",
-                          "stage",
-                          "special", "candidate", "party", "candidatevotes", "totalvotes"]
+                          "stage", "special", "candidate", "party", "candidatevotes", "totalvotes"]
         for col in house_rep.columns:
             if col not in house_rep_cols:
                 house_rep.drop(col, axis=1, inplace=True)
-        house_rep = house_rep[house_rep['year'] >= self.cutoff_year]
+        house_rep = house_rep[house_rep['year'] <= self.cutoff_year]
         string_dtypes = house_rep.convert_dtypes().select_dtypes("string")
         house_rep[string_dtypes.columns] = string_dtypes.apply(lambda x: x.str.lower())
         logger.success(f"House Representatives loaded")
@@ -205,9 +204,10 @@ class dataLoader:
                             f'a.get_population_data()')
         return list(demographics + demographics2)
 
-    def get_winner_data(self, year: int = 1995, state_fips: int = 1, verbose: bool = False) -> list:
+    def get_winner_data(self, year: int = 1995, state_fips: int = 1, verbose: bool = False, second_best: bool = False) -> list:
         """
         Identifies the winning political candidate from a specified year and state and returns the candidate_ids
+        :param second_best:
         :param average:
         :param verbose:
         :param candidates:
@@ -222,8 +222,14 @@ class dataLoader:
         candidates = pd.DataFrame(self.candidates[self.candidates['year'] == year])
 
         candidates = candidates[candidates['state_fips'] == state_fips]
-        candidates = candidates.sort_values('candidatevotes', ascending=False).drop_duplicates(
-            ['year', 'state_fips', 'district'])
+        if not second_best:
+            candidates = candidates.sort_values('candidatevotes', ascending=False).drop_duplicates(
+                ['year', 'state_fips', 'district'])
+        else:
+            candidates = candidates.groupby(by=['year', 'state_fips', 'district']).head(2)
+            candidates = candidates.groupby(by=['year', 'state_fips', 'district']).tail(1)
+            print(candidates)
+            exit()
 
         if not candidates.empty:
             all_parties = list(candidates['party'])

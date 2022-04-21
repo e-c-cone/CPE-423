@@ -14,7 +14,7 @@ from sklearn.metrics import mean_squared_error
 
 import utils
 import processing.load_data as load_data
-from processing.election_data import generate_dataset
+from processing.election_data import data_generator
 from utils import compare_prediction_to_actual
 from models.model import Model
 
@@ -27,25 +27,38 @@ def arguments():
     parser.add_argument("-rd", "--reload_data", default=False, action="store_true",
                         help="Reload data instead of using data saved on file")
     parser.add_argument("-ex", "--exclude", action='store', help="Excludes a model")
+    parser.add_argument("-cy", "--cutoff_year", action='store', default=2008, type=int, help="Sets end year for model training")
 
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = arguments()
-    # utils.find_possible_categories()
-    # exit()
     verbose = args.verbose
-
-    # Filter data to be after specified cutoff year
-    cutoff_year = 1990
 
     ###  Generate Election Data  ###
     # Here we clean the data, and reshape it using pandas dataframes to be an appropriate shape for input into the
     # Linear Regression algorithm. We start by generating the possible outputs (percentage of votes for each party)
     # and continue by adding the GDP and Income data. This is not expected to be very accurate.
-    x, y, keys = generate_dataset(cutoff_year, args.verbose, args.reload_data)
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
+
+    dg = data_generator(args.cutoff_year, verbose, args.reload_data)
+    x, y, second_best_ratings, keys = dg.generate_dataset()
+    dg.predict_election_year(keys)
+    exit()
+
+    train_inds = [not (int(key.split('_')[1]) == int(args.cutoff_year)) for key in keys]
+    test_inds = [not ind for ind in train_inds]
+
+    x = np.array(x)
+    y = np.array(y)
+    second_best_ratings = np.array(second_best_ratings)
+    x_train = x[train_inds]
+    y_train = y[train_inds]
+    x_test = x[test_inds]
+    y_test = y[test_inds]
+    second_best_ratings = second_best_ratings[test_inds]
+
+    # x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
 
     if args.exclude:
         model = Model(exclude=[args.exclude], verbose=verbose).fit(x_train, y_train)
