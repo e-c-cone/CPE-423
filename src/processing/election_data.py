@@ -1,6 +1,7 @@
 import os
 import time
 import json
+import random
 import pandas as pd
 import numpy as np
 from loguru import logger
@@ -35,36 +36,57 @@ class data_generator:
 
         if reload_data or not os.path.exists(processed_fpath):
             if not reload_data and not os.path.exists(processed_fpath):
-                logger.warning(f'File was not found at {processed_fpath}, but reload_data was not passed as an argument. Ru'
-                               f'n code with -rd or --reload_data to reload data. Reloading data despite missing argument.')
+                logger.warning(f'File was not found at {processed_fpath}, but reload_data was not passed as an argument'
+                               f'. Run code with -rd or --reload_data to reload data. Reloading data despite missing'
+                               f'argument.')
             logger.info('Generating viable dataset')
 
             # Load winning ids into memory in order to retrieve ratings
             reps = []
             data = {}
             for state in self.FIPS_POSSIBLE:
-                for year in range(1990, cutoff_year)[::2]:  # TODO - get data after 2010
-                    winner_ids, parties = \
+                for year in range(1990, cutoff_year+2)[::2]:  # TODO - get data after 2010
+                    winner_ids, winner_additional_data = \
                         self.load_data.get_winner_data(year=year, state_fips=state, verbose=verbose)
-                    second_best_ids, parties = \
+                    second_best_ids, loser_additional_data = \
                         self.load_data.get_winner_data(year=year, state_fips=state, verbose=verbose, second_best=True)
+
+                    if len(winner_additional_data['percent_votes']) < len(winner_ids):
+                        winner_ids = winner_ids[:len(winner_additional_data['percent_votes'])]
+
                     for i, winner_id in enumerate(winner_ids):
-                        try:
-                            second_best_id = second_best_ids[i]
-                            data[f'{state}_{year}_{i}'] = {"id": winner_id, "party": parties[i], "second_best": second_best_id}
-                            if winner_id:
-                                reps += [winner_id]
-                        except IndexError:
-                            logger.warning(f'IndexError for {winner_id=}\tat index={i}')
-                            # print(winner_ids, parties)
+                        if winner_id and type(winner_id) == int:
+                            if i < len(second_best_ids):
+                                second_best_id = second_best_ids[i]
+                            else:
+                                second_best_id = winner_id
+                                try:
+                                    loser_additional_data['parties'] += list(winner_additional_data['parties'])[i]
+                                    loser_additional_data['percent_votes'] += list(winner_additional_data['percent_votes'])[i]
+                                except TypeError:
+                                    print(loser_additional_data)
+                                    print(winner_additional_data)
+                                    continue
+                                except IndexError:
+                                    print(loser_additional_data)
+                                    print(winner_additional_data)
+                                    continue
+                            if type(second_best_id) == str and "Error" in second_best_id:
+                                second_best_id = winner_id
+                            reps += [winner_id, second_best_id]
+                            data[f'{state}_{year}_{i}'] = {"winner": winner_id, "second_best": second_best_id,
+                                                           "winner_perc": winner_additional_data['percent_votes'][i],
+                                                           "loser_perc": loser_additional_data['percent_votes'][i]}
+
             logger.success(f'There are {len(set(reps))} valid loaded representatives')
+            pd.DataFrame.from_dict(data).T.to_csv('TEST.csv')
 
             # Load data from elections and merge into one dataset
             logger.info('Merging datasets')
             x_categorical = []
             x_quantitative = []
             Y = []
-            second_best_ratings = []
+            additional_data = {"election_id": [], "second_best_ratings": [], "winner_perc": [], "loser_perc": []}
             successful_keys = []
             prev_err = None
             data_size = len(data.keys())
@@ -89,36 +111,48 @@ class data_generator:
                     pop = self.load_data.get_population_data(year=year, state_fips=state_fips, verbose=verbose)
                     inc = self.load_data.get_personal_income(year=year, state_fips=state_fips, verbose=verbose)
                     tax_burden = self.load_data.get_tax_burden_data(year=year, state_fips=state_fips, verbose=verbose)
-                    rating = self.load_data.get_ratings(data[election_id]['id'], int(election_id.split('_')[1]),
-                                                        verbose=verbose)
-                    second_best_rating = self.load_data.get_ratings(data[election_id]['second_best'],
-                                                                    int(election_id.split('_')[1]), verbose=verbose)
-                    marijuana_status = self.load_data.get_marijuana_legalization_status(year=year, state_fips=state_fips,
-                                                                                   verbose=verbose)
+                    rating = self.load_data.get_ratings(data[election_id]['winner'], year, verbose=False)
+                    second_best_ratings = self.load_data.get_ratings(data[election_id]['second_best'], year,
+                                                                    verbose=verbose)
+                    marijuana_status = self.load_data.get_marijuana_legalization_status(year=year,
+                                                                                        state_fips=state_fips,
+                                                                                        verbose=verbose)
 
-                    previous_election_ratings = None
+                    previous_election_ratings = []
                     if not year % 10 == 0:
                         district = election_id.split('_')[2]
                         prev_election = str(state_fips) + '_' + str(year - 2) + '_' + district
-                        previous_election_ratings = self.load_data.get_ratings(data[prev_election]['id'], year - 2, verbose=verbose)
+                        previous_election_ratings = self.load_data.get_ratings(data[prev_election]['winner'], year - 2,
+                                                                               verbose=verbose)
                     else:
                         all_ratings = []
-                        for dist in range(150):
+                        for dist in range(60):
                             prev_election = str(state_fips) + '_' + str(year - 2) + '_' + str(dist)
                             if prev_election in data:
-                                all_ratings += [self.load_data.get_ratings(data[prev_election]['id'], year - 2, verbose=verbose)]
-                            elif len(np.array(all_ratings).shape) == 1:
-                                previous_election_ratings = all_ratings
-                                break
-                            else:
-                                previous_election_ratings = np.average(all_ratings, axis=0).tolist()
-                                break
+                                prev_election_rating = self.load_data.get_ratings(data[prev_election]['winner'],
+                                                                                  year - 2, verbose=verbose)
+                                if np.array(prev_election_rating).shape[0] == 72:
+                                    all_ratings += [prev_election_rating]
 
-                    if pop and inc and tax_burden and rating and previous_election_ratings:
+                        if np.array(all_ratings).shape[0] == 72:
+                            previous_election_ratings = all_ratings
+                        elif len(np.array(all_ratings).shape) > 1:
+                            try:
+                                previous_election_ratings = np.average(all_ratings, axis=0).tolist()
+                            except ZeroDivisionError:
+                                previous_election_ratings = all_ratings
+
+                    if not np.array(previous_election_ratings).shape[0] == 72:
+                        previous_election_ratings = np.zeros(72).tolist()
+
+                    if pop and inc and tax_burden and rating and previous_election_ratings and second_best_ratings:
                         x_quantitative += [pop + inc + tax_burden + previous_election_ratings]
-                        x_categorical += [[year - 1990] + [state_fips] + marijuana_status]
+                        x_categorical += [[year-1990] + [state_fips] + marijuana_status]
                         Y += [rating]
-                        second_best_ratings += [second_best_rating]
+                        additional_data['election_id'] += [election_id]
+                        additional_data['second_best_ratings'] += [second_best_ratings]
+                        additional_data['winner_perc'] += [data[election_id]['winner_perc']]
+                        additional_data['loser_perc'] += [data[election_id]['loser_perc']]
                         successful_keys += [election_id]
 
                 except LoadError as e:
@@ -148,8 +182,10 @@ class data_generator:
                 logger.info(f'After Processing:  {X.shape=}')
 
             # Save data as .json
+            # dataset = {"X": X.tolist(), "Y": np.array(Y).tolist(),
+            #            "second_best_ratings": np.array(second_best_ratings).tolist(), "keys": successful_keys}
             dataset = {"X": X.tolist(), "Y": np.array(Y).tolist(),
-                       "second_best_ratings": np.array(second_best_ratings).tolist(), "keys": successful_keys}
+                       "additional_data": additional_data, "keys": successful_keys}
             with open(processed_fpath, 'w') as file:
                 json.dump(dataset, file, indent=4)
                 if verbose:
@@ -157,7 +193,7 @@ class data_generator:
 
             logger.success(f'Loaded {len(X)} data samples into memory')
 
-            return X, np.array(Y), second_best_ratings, successful_keys
+            return X, np.array(Y), additional_data, successful_keys
         else:
             logger.info('Loading dataset from file')
 
@@ -167,25 +203,9 @@ class data_generator:
                 dataset = json.load(file)
             X = dataset["X"]
             Y = dataset["Y"]
-            second_best_ratings = dataset["second_best_ratings"]
+            additional_data = dataset["additional_data"]
             keys = dataset["keys"]
 
             logger.success(f'Data was loaded successfully from {processed_fpath}.')
-            return X, Y, second_best_ratings, keys
-
-    def predict_election_year(self, election_ids: list):
-        election_ids = [election_id.split('_') for election_id in election_ids]
-        election_ids = pd.DataFrame(election_ids, columns=['State', 'Year', 'District'])
-
-        for state in self.FIPS_POSSIBLE:
-            for year in range(1990, self.cutoff_year)[::2]:  # TODO - get data after 2010
-                winner_ids, parties = \
-                    self.load_data.get_winner_data(year=year, state_fips=state, verbose=self.verbose, second_best=True)
-                # for i, id in enumerate(winner_ids):
-                #     try:
-                #         data[f'{state}_{year}_{i}'] = {"id": id, "party": parties[i]}
-                #         if id:
-                #             reps += [id]
-                #     except IndexError:
-                #         logger.warning(f'IndexError for {id=}\tat index={i}')
+            return X, Y, additional_data, keys
 

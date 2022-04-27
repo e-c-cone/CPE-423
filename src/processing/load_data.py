@@ -128,12 +128,12 @@ class dataLoader:
                 result += [val]
             return result
         else:
-            return []
+            return np.zeros(72).tolist()
 
     def get_ratings(self, candidate_id: str, year: int = 2050, verbose: bool = False) -> list:
         """
-        Fetches report card data for a specific candidate by id and optionally by year and formats in a standardized format
-        for input to data model.
+        Fetches report card data for a specific candidate by id and optionally by year and formats in a standardized
+        format for input to data model.
         :param verbose:
         :param year:
         :param candidate_id:
@@ -147,6 +147,7 @@ class dataLoader:
             try:
                 ratings = self.load_by_candidate_id(candidate_id=candidate_id, year=year, verbose=verbose)
                 ratings['timespan'] = pd.to_numeric(ratings['timespan'].astype(str).str[0:4])
+                ratings['rating'] = ratings.rating.astype(str).str.replace(r'[%/]', '', regex=True)
                 ratings['rating'] = ((ratings.rating.astype(str).str.replace(r'^[^0-9]*$', '0.5', regex=True)).astype(
                     float) / 50) - 1
                 ratings = ratings.rename(columns=lambda x: re.sub(r'^[a-zA-Z_]*name_', 'category_name_', x))
@@ -175,10 +176,10 @@ class dataLoader:
                 self.loaded_cand_ids = self.ALL_SIG_DATA['candidate_id'].unique()
 
             except KeyError:
-                raise LoadError(f'KeyError:\t\tException processing {candidate_id=} in load_data.get_ratings()')
+                raise LoadError(f'KeyError: Exception processing {candidate_id=} in load_data.get_ratings()')
 
             except TypeError:
-                raise LoadError(f'TypeError:\t\tException processing {candidate_id=} in load_data.get_ratings()')
+                raise LoadError(f'TypeError: Exception processing {candidate_id=} in load_data.get_ratings()')
 
         result = self.process_ratings(self.ALL_SIG_DATA, candidate_id=candidate_id, year=year)
         return result
@@ -197,14 +198,15 @@ class dataLoader:
             demographics = demographics.to_numpy()[0][3:] / 100
             demographics2 = demographics / np.sum(demographics)
         except FileNotFoundError:
-            raise LoadError(f'FileNotFoundError:\tException processing demographics on {year=}, for {state_fips} in loa'
+            raise LoadError(f'FileNotFoundError: Exception processing demographics on {year=}, for {state_fips} in loa'
                             f'd_data.get_population_data()')
         except IndexError:
-            raise LoadError(f'IndexError:\t\tException processing demographics on {year=}, for {state_fips} in load_dat'
+            raise LoadError(f'IndexError: Exception processing demographics on {year=}, for {state_fips} in load_dat'
                             f'a.get_population_data()')
         return list(demographics + demographics2)
 
-    def get_winner_data(self, year: int = 1995, state_fips: int = 1, verbose: bool = False, second_best: bool = False) -> list:
+    def get_winner_data(self, year: int = 1995, state_fips: int = 1, verbose: bool = False, second_best: bool = False)\
+            -> (list, dict):
         """
         Identifies the winning political candidate from a specified year and state and returns the candidate_ids
         :param second_best:
@@ -217,58 +219,81 @@ class dataLoader:
         """
 
         ids = []
-        parties = []
+        additional_data = {'parties': [], 'percent_votes': []}
         state_abbr = utils.get_state_abbr(self.FIPS_relations, fips=state_fips)
         candidates = pd.DataFrame(self.candidates[self.candidates['year'] == year])
 
         candidates = candidates[candidates['state_fips'] == state_fips]
+        candidates = candidates.sort_values('candidatevotes', ascending=False)
         if not second_best:
-            candidates = candidates.sort_values('candidatevotes', ascending=False).drop_duplicates(
-                ['year', 'state_fips', 'district'])
+            candidates = candidates.drop_duplicates(['year', 'state_fips', 'district'])
         else:
             candidates = candidates.groupby(by=['year', 'state_fips', 'district']).head(2)
             candidates = candidates.groupby(by=['year', 'state_fips', 'district']).tail(1)
-            print(candidates)
-            exit()
+        candidates['percent_votes'] = candidates['candidatevotes'] / candidates['totalvotes']
+        candidates = candidates.sort_values(by=['district'])
+        # print(candidates)
 
         if not candidates.empty:
             all_parties = list(candidates['party'])
+            percent_of_votes = list(candidates['percent_votes'])
             candidates = list(candidates['candidate'])
             candidates = [candidate.split(' ') for candidate in candidates]
             candidates = [[re.sub(r'[a-zA-Z]*[^a-zA-Z]+[a-zA-Z]*', '', name_seg) for name_seg in candidate] for
-                          candidate in
-                          candidates]
-            candidates = [[re.sub(r'^(ii)|(iii)|(jr)|(sr)$', '', name_seg) for name_seg in candidate] for candidate in
-                          candidates]
+                          candidate in candidates]
+            candidates = [[re.sub(r'^(i)|(ii)|(iii)|(iv)|(jr)|(sr)$', '', name_seg) for name_seg in candidate] for
+                          candidate in candidates]
             candidates = [[name_seg for name_seg in candidate if name_seg] for candidate in candidates]
             candidates = [candidate[0] + ' ' + candidate[-1] for candidate in candidates if candidate]
 
-            for i, candidate in enumerate(candidates):
+            for i, candidate in enumerate(candidates):  # TODO - Clean up error processing
                 try:
                     candidate = candidate.split(' ')
                     fpath = os.path.join('Votesmart', 'cands', f'{candidate[-1]}.csv')
                     candidate_info = pd.read_csv(fpath)
+
                     candidate_info = candidate_info[candidate_info['first_name'].str.lower() == candidate[0]]
                     candidate_info = candidate_info[candidate_info['election_year'] == year]
                     candidate_info = candidate_info[candidate_info['election_state_id'] == state_abbr]
                     candidate_info = candidate_info[candidate_info['election_office'] == 'U.S. House']
-                    candidate_id = candidate_info['candidate_id']
-                    parties += [all_parties[i]]
-                    ids += list(candidate_id)
+                    # print(f'{second_best=}', candidate_info)
+                    if not candidate_info.empty:
+                        candidate_id = candidate_info['candidate_id']
+                        additional_data['parties'] += [all_parties[i]]
+                        additional_data['percent_votes'] += [percent_of_votes[i]]
+                        ids += list(candidate_id)
+                        if not list(candidate_id):
+                            print(f'not exists')
+                    else:
+                        additional_data['parties'] += ["CandidateNotFoundError"]
+                        additional_data['percent_votes'] += ["CandidateNotFoundError"]
+                        ids += ["CandidateNotFoundError"]
+                except KeyError:
+                    additional_data['parties'] += ["KeyError"]
+                    additional_data['percent_votes'] += ["KeyError"]
+                    ids += ["KeyError"]
+                    if verbose:
+                        logger.warning(f'KeyError:\t{state_abbr=}, {year=}, {candidate=}')
                 except FileNotFoundError:
+                    additional_data['parties'] += ["FileNotFoundError"]
+                    additional_data['percent_votes'] += ["FileNotFoundError"]
+                    ids += ["FileNotFoundError"]
                     if verbose:
                         logger.warning(f'FileNotFoundError:\t{state_abbr=}, {year=}, {candidate=}')
-                        # df = pd.read_csv(os.path.join('Votesmart', 'candidates2.csv'))
-                        # df = df.append({"last_name": candidate[-1]}, ignore_index=True)
-                        # df.to_csv(os.path.join('Votesmart', 'candidates2.csv'))
                 except IndexError:
+                    additional_data['parties'] += ["IndexError"]
+                    additional_data['percent_votes'] += ["IndexError"]
+                    ids += ["IndexError"]
                     if verbose:
-                        logger.warning(f'IndexError:\t\t{state_abbr=}, {year=}')
+                        logger.warning(f'IndexError:\t\t{state_abbr=}, {year=}, {second_best=}')
                 except UnicodeDecodeError:
+                    additional_data['parties'] += ["UnicodeDecodeError"]
+                    additional_data['percent_votes'] += ["UnicodeDecodeError"]
+                    ids += ["UnicodeDecodeError"]
                     if verbose:
-                        logger.warning(f'UnicodeDecodeError:\t{state_abbr=}, {year=}')
+                        logger.warning(f'UnicodeDecodeError:\t{state_abbr=}, {year=}, {second_best=}')
         ids = list(ids)
-        return ids, parties
+        return ids, additional_data
 
     def vectorize_party(self, cand_party: str):
         """
@@ -308,6 +333,10 @@ class dataLoader:
         return combined_income_tax_info
 
     def save_processed_cand_data(self):
+        """
+        Save missing candidate ids to file for later Votesmart API Calls
+        :return:
+        """
         missing_cand_ids = list(set(self.missing_cand_ids))
         missing_cand_ids = pd.DataFrame(missing_cand_ids, columns=['cand_id'])
         missing_cand_ids.to_csv(os.path.join('Votesmart', 'cand_ids.csv'), index=False)
