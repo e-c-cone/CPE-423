@@ -15,17 +15,13 @@ from utils import mse_by_category, r2_by_category, get_model_weights, compare_pr
 
 
 def mse(predicted, actual):
-    print(np.array(predicted).shape, np.array(actual).shape)
     err = np.square(predicted - actual)
-    print(err.shape)
     err = np.sum(err, axis=1)
     d = np.abs(err - np.median(err))
     mdev = np.median(d)
     s = d/mdev if mdev else 0.
     err = err[s < 6.]
-    print(err.shape)
     err = np.average(err, axis=0)
-    print(err.shape)
     return err
 
 

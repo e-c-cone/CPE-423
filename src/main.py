@@ -72,6 +72,11 @@ if __name__ == "__main__":
         model.fit(x_train, y_train)
         model.save()
     else:
-        model.load()
+        try:
+            model.load()
+        except FileNotFoundError:
+            logger.warning(f'Model files not found, training model as usual')
+            model.fit(x_train, y_train)
+            model.save()
 
     model.predict(x_test, y_test, additional_data, keys)
