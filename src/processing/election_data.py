@@ -207,27 +207,5 @@ class data_generator:
             keys = dataset["keys"]
 
             logger.success(f'Data was loaded successfully from {processed_fpath}.')
-            return X, Y, second_best_ratings, keys
-
-    def predict_election_year(self, election_ids: list):
-        election_ids = [election_id.split('_') for election_id in election_ids]
-        election_ids = pd.DataFrame(election_ids, columns=['State', 'Year', 'District'])
-
-        for state in self.FIPS_POSSIBLE:
-            for year in range(1990, self.cutoff_year)[::2]:  # TODO - get data after 2010
-                winner_ids, parties = \
-                    self.load_data.get_winner_data(year=year, state_fips=state, verbose=self.verbose, second_best=True)
-                # for i, id in enumerate(winner_ids):
-                #     try:
-                #         data[f'{state}_{year}_{i}'] = {"id": id, "party": parties[i]}
-                #         if id:
-                #             reps += [id]
-                #     except IndexError:
-                #         logger.warning(f'IndexError for {id=}\tat index={i}')
-                
-    def election_squish(self):
-    
-    #X [[w1 ,+ w2 ,+ pred]
-    #Y Correct (Binary Classification)
             return X, Y, additional_data, keys
 
