@@ -1,3 +1,4 @@
+import os
 import tensorflow as tf
 import numpy as np
 from tensorflow.keras.layers import Dense, Flatten, Dropout, Input
@@ -25,3 +26,9 @@ class NeuralNetwork:
 
     def predict(self, x):
         return self.model.predict(x)
+
+    def save(self):
+        self.model.save(os.path.join(self.dir, self.fname))
+
+    def load(self):
+        self.model = tf.keras.models.load_model(os.path.join(self.dir, self.fname))
