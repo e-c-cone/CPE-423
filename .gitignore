@@ -2,7 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
-data/processed_dataset.csv
 Votesmart/token.txt
 Votesmart/candidates.csv
 Votesmart/sigs
