@@ -104,11 +104,11 @@ def get_proper_names(candidates: pd.DataFrame):
     candidates = [candidate.split(' ') for candidate in candidates]
     candidates = [[re.sub(r'[a-zA-Z]*[^a-zA-Z]+[a-zA-Z]*', '', name_seg) for name_seg in candidate] for candidate in
                   candidates]
-    candidates = [[re.sub(r'^(ii)|(iii)|(jr)|(sr)$', '', name_seg) for name_seg in candidate] for candidate in
+    candidates = [[re.sub(r'^(i)|(ii)|(iii)|(iv)|(jr)|(sr)$', '', name_seg) for name_seg in candidate] for candidate in
                   candidates]
     candidates = [[name_seg for name_seg in candidate if name_seg] for candidate in candidates]
     lnames = [candidate[-1] for candidate in candidates if candidate]
-    lnames = pd.DataFrame({"last_name": lnames}).drop_duplicates(subset=['last_name'])
+    lnames = pd.DataFrame({"last_name": lnames}).drop_duplicates(subset=['last_name']).sort_values(by=['last_name'])
     lnames.to_csv(os.path.join('Votesmart', 'candidates2.csv'))
     candidates = [candidate[0] + ' ' + candidate[-1] for candidate in candidates if candidate]
 
@@ -128,15 +128,21 @@ def generate_ids_from_cand_dir():
     for fpath in files:
         try:
             tmp = pd.read_csv(fpath)
-            cand_ids.extend(tmp["candidate_id"].to_list())
-        except:
-            print(f'Error loading data from {fpath}')
+        except UnicodeDecodeError:
+            continue
+        except pd.errors.EmptyDataError:
+            continue
 
+        try:
+            cand_ids.extend(tmp["candidate_id"].to_list())
+        except KeyError:
+            pass
     # print(len(cand_ids))
     df = pd.DataFrame(cand_ids, columns=['cand_id']).drop_duplicates(subset=['cand_id'])
     # print(len(df))
     # print(df.head())
     df.to_csv('cand_ids.csv')
+    logger.warning('Candidate ID Data file generated, run Votesmart script to generate name data')
 
 
 def generate_sig_data_file():

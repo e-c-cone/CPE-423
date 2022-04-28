@@ -1,27 +1,45 @@
 library(votesmart)
+rm(list=ls())
 
-# for(lname in lnames$last_name) {
-#   fpath = paste(paste("cands/",lname,sep=""),".csv", sep="")
-#   if(!file.exists(fpath)) {
-#     (tmp <-
-#         votesmart::candidates_get_by_lastname(
-#           last_names = lname,
-#           election_year = 1980:2020
-#         )
-#     )
-#     tryCatch({
-#       tmp <- tmp %>% filter((!is.na(candidate_id))) %>% select(
-#         candidate_id, first_name, last_name, office_type_id,
-#         election_year, election_state_id, election_office
-#       )
-#       write.csv(tmp, fpath)
-#     },
-#     error=function(cond){
-#       print("Error encountered")
-#       print(tmp)
-#     })
-#   }
-# }
+generate_ids <- function() {
+  rm(list=ls())
+  
+  token <- read.delim("token.txt")
+  token <- token[1, 1]
+  Sys.setenv(VOTESMART_API_KEY = token)
+  key <- Sys.getenv("VOTESMART_API_KEY")
+  
+  key_exists <- (nchar(key) > 0)
+  if(!key_exists) knitr::knit_exit()
+  suppressPackageStartupMessages(library(dplyr))
+  conflicted::conflict_prefer("filter", "dpylr")
+  
+  lnames = read.csv("candidates2.csv")
+  
+  for(lname in lnames$last_name) {
+    fpath = paste(paste("cands/",lname,sep=""),".csv", sep="")
+    if(!file.exists(fpath)) {
+      (tmp <-
+          votesmart::candidates_get_by_lastname(
+            last_names = lname,
+            election_year = 1988:2020
+          )
+      )
+      tryCatch({
+        tmp <- tmp %>% filter((!is.na(candidate_id))) %>% select(
+          candidate_id, first_name, last_name, office_type_id,
+          election_year, election_state_id, election_office
+        )
+        write.csv(tmp, fpath)
+      },
+      error=function(cond){
+        # print("Error encountered")
+        print(tmp)
+        write.csv(lname, fpath)
+      })
+    }
+  }
+}
 
 generate_ratings <- function() {
   rm(list=ls())
