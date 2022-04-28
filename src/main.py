@@ -29,6 +29,8 @@ def arguments():
     parser.add_argument("-ex", "--exclude", action='store', help="Excludes a model")
     parser.add_argument("-cy", "--cutoff_year", action='store', default=2010, type=int,
                         help="Sets end year for model training")
+    parser.add_argument("-t", "--train", action='store_true', default=False,
+                        help="Indicates whether to train a model from scratch or to use a pretrained version")
 
     return parser.parse_args()
 
@@ -45,7 +47,6 @@ if __name__ == "__main__":
     # utils.generate_ids_from_cand_dir()
     dg = data_generator(args.cutoff_year, verbose, args.reload_data)
     x, y, additional_data, keys = dg.generate_dataset()
-    # dg.predict_election_year(keys)
 
     train_inds = [(int(key.split('_')[1]) < int(args.cutoff_year)) for key in keys]
     test_inds = [not ind for ind in train_inds]
@@ -54,7 +55,6 @@ if __name__ == "__main__":
     y = np.array(y)
 
     # additional_data.to_csv('TEST.csv')
-    # exit()
     x_train = x[train_inds]
     y_train = y[train_inds]
     x_test = x[test_inds]
@@ -62,12 +62,16 @@ if __name__ == "__main__":
     keys = np.array(keys)[test_inds]
     additional_data = pd.DataFrame(additional_data).set_index('election_id').iloc[test_inds]
 
-    # second_best_ratings = second_best_ratings[test_inds]
-
-    # x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
-
     if args.exclude:
-        model = Model(exclude=[args.exclude], verbose=verbose).fit(x_train, y_train)
+        model = Model(inp_shape=np.array(x_train).shape[1:], out_shape=np.array(y_train).shape[1],
+                      exclude=[args.exclude], verbose=verbose)
     else:
-        model = Model(verbose=verbose).fit(x_train, y_train)
+        model = Model(inp_shape=np.array(x_train).shape[1:], out_shape=np.array(y_train).shape[1], verbose=verbose)
+
+    if args.train:
+        model.fit(x_train, y_train)
+        model.save()
+    else:
+        model.load()
+
     model.predict(x_test, y_test, additional_data, keys)

@@ -1,3 +1,5 @@
+import os
+import pickle
 from loguru import logger
 from sklearn.ensemble import RandomForestRegressor
 
@@ -16,3 +18,10 @@ class RandomForest:
 
     def predict(self, x):
         return self.model.predict(x)
+
+    def save(self):
+        with open(os.path.join(self.dir, self.fname+'.pkl'), 'wb') as f:
+            pickle.dump(self.model, f)
+
+    def load(self):
+        self.model = pickle.load(open(os.path.join(self.dir, self.fname+'.pkl'), 'rb'))

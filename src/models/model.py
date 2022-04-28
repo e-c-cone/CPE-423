@@ -1,5 +1,7 @@
+import os
 import math
 import random
+import json
 import tensorflow as tf
 import numpy as np
 import pandas as pd
@@ -28,22 +30,23 @@ def mse(predicted, actual):
 
 
 class Model:
-    def __init__(self, exclude: list = [], verbose: bool = False):
+    def __init__(self, inp_shape, out_shape, exclude: list = [], verbose: bool = False):
         self.exclude = exclude
-        self.hyperparams: dict = {}
-        self.models: dict = {}
         self.weights: dict = {}
         self.verbose: bool = verbose
-
-    def fit(self, x_train, y_train):
+        self.save_dir: str = os.path.join('src', 'models', 'saved_models')
         self.hyperparams = {
-            "LiRe": {},
-            "RaFo": {},
-            "NeNe": {'optimizer': 'adam',
+            "LiRe": {'fname': 'linear_regressor',
+                     'dir': self.save_dir},
+            "RaFo": {'fname': 'random_forest',
+                     'dir': self.save_dir},
+            "NeNe": {'fname': 'neural_network',
+                     'dir': self.save_dir,
+                     'optimizer': 'adam',
                      'loss': tf.keras.losses.MeanSquaredError(),
+                     'inp_shape': inp_shape,
+                     'out_shape': out_shape,
                      'metrics': ['accuracy'],
-                     'inp_shape': np.array(x_train).shape[1:],
-                     'out_shape': np.array(y_train).shape[1],
                      'epochs': 17}
         }
         self.models = {
@@ -56,6 +59,7 @@ class Model:
             del self.models[key]
             del self.hyperparams[key]
 
+    def fit(self, x_train, y_train):
         for key, model in self.models.items():
             if self.verbose:
                 logger.info(f'Training {model.name}')
@@ -70,7 +74,7 @@ class Model:
 
         weights = get_model_weights(np.array(r2))
         for ind, key in enumerate(self.models.keys()):
-            self.weights[key] = weights[ind]
+            self.weights[key] = weights[ind].tolist()
 
         return self
 
@@ -142,11 +146,23 @@ class Model:
         return prediction_results_for_last_year
 
     def save(self):
-        for model in self.models:
+        logger.info(f'Saving models to file...')
+        for model in self.models.values():
             model.save()
+        hyperparameters = {'exclude': self.exclude,
+                           'weights': self.weights,
+                           'verbose': self.verbose}
+        with open(os.path.join(self.save_dir, 'aggregate_model_hyperparameters.json'), 'w', encoding='utf-8') as f:
+            json.dump(hyperparameters, f, indent=4)
+        logger.success(f'Models saved successfully')
 
     def load(self):
-        for model in self.models:
+        logger.info(f'Loading models from file...')
+        for model in self.models.values():
             model.load()
 
-
+        with open(os.path.join(self.save_dir, 'aggregate_model_hyperparameters.json')) as f:
+            hyperparameters = dict(json.load(f))
+        for key, val in hyperparameters.items():
+            self.__setattr__(key, val)
+        logger.success(f'Models loaded successfully')
