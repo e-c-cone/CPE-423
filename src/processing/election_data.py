@@ -208,4 +208,27 @@ class data_generator:
 
             logger.success(f'Data was loaded successfully from {processed_fpath}.')
             return X, Y, additional_data, keys
-
+            
+    def electionSquish(self):
+        df = pd.read_csv('pred_results_for_last_year.csv')
+        
+        newdf = pd.DataFrame()
+        
+        newdf['Y'] = [ [i,j,False] if random.uniform(0,1) > .5 else [j,i,True] for i,j in zip(df['winner_perc'],df['loser_perc'])]
+        print(newdf['Y'])
+        
+        newdf['X'] = np.ones(63)
+        for i in range(len(newdf['Y'])):
+            if not newdf['Y'][i][2]:
+                newdf['X'][i] = df['x_test'][i] + df['prediction'][i] + df['y_test'][i] + df['second_best_ratings'][i]
+            else:
+                newdf['X'][i] = df['x_test'][i] + df['prediction'][i] + df['second_best_ratings'][i] + df['y_test'][i]
+        
+        for i in range(len(newdf['Y'])):
+            newdf['Y'][i] = newdf['Y'][i][:-1]
+            if newdf['Y'][i][0] == .5:
+                newdf = newdf.drop([i])
+        
+        return newdf
+        #newdf.to_csv('test.csv')
+        
