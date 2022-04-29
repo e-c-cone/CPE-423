@@ -11,7 +11,7 @@ class NeuralNetwork:
             Flatten(input_shape=self.inp_shape),
             Dense(512, activation='relu'),
             Dense(688, activation='relu'),
-            Dropout(0.3),
+            Dropout(0.4),
             Dense(512, activation='relu'),
             Dense(self.out_shape)
         ])

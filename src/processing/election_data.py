@@ -216,7 +216,7 @@ class data_generator:
         newdf['Y'] = [[i, j, False] if random.uniform(0, 1) > .5 else [j, i, True]
                       for i, j in zip(df['winner_perc'], df['loser_perc'])]
         
-        ind = ['x_test','prediction','y_test','second_best_ratings']
+        ind = ['x_test', 'prediction', 'y_test','second_best_ratings']
         
         X = []
         for i in range(len(df['x_test'])):
@@ -230,7 +230,7 @@ class data_generator:
         else:
             newdf['X'] = pd.Series(X)
         
-        print(len(newdf['X'][0]))
+        # print(len(newdf['X'][0]))
         
         for i in range(len(newdf['Y'])):
             newdf['Y'][i] = newdf['Y'][i][:-1]  # remove true/false

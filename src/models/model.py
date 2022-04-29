@@ -5,6 +5,7 @@ import json
 import tensorflow as tf
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from loguru import logger
 from sklearn.metrics import mean_squared_error, r2_score
 from models.linear_regression import LinearRegressor
@@ -55,7 +56,7 @@ class Model:
             del self.models[key]
             del self.hyperparams[key]
 
-    def fit(self, x_train, y_train):
+    def fit(self, x_train, y_train, plot=False):
         for key, model in self.models.items():
             if self.verbose:
                 logger.info(f'Training {model.name}')
@@ -64,17 +65,24 @@ class Model:
                 logger.info(f'Training completed for {model.name}')
 
         r2 = []
-        for key in self.models.keys():
-            predictions = self.models[key].predict(x_train)
+        for model in self.models.values():
+            predictions = model.predict(x_train)
             r2 += [r2_by_category(predictions, y_train)]
 
         weights = get_model_weights(np.array(r2))
         for ind, key in enumerate(self.models.keys()):
             self.weights[key] = weights[ind].tolist()
+        agg_prediction = self.predict(x_train, y_train, verbose=False)
+        r2 += [r2_by_category(agg_prediction, y_train)]
+
+        if plot:
+            self.stats_by_category(x_train, y_train, 'Training')
 
         return self
 
-    def predict(self, x_test, y_test):
+    def predict(self, x_test, y_test, verbose=True):
+        if verbose:
+            verbose = self.verbose
         total_predictions = []
         ind = random.randint(0, len(x_test) - 1)
 
@@ -82,7 +90,7 @@ class Model:
             prediction = np.array(model.predict(x_test))
             prediction = np.clip(prediction, -1, 1)
 
-            if self.verbose:
+            if verbose:
                 logger.info(f'Testing {model.name}')
                 err = mse(prediction, y_test)
                 score = model.score(x_test, y_test)
@@ -93,16 +101,57 @@ class Model:
             total_predictions += [list(prediction)]
 
         total_predictions = np.sum(total_predictions, axis=0)
-        if self.verbose:
+        if verbose:
             err = mse(total_predictions, y_test)
             r2 = r2_score(y_test, total_predictions)
             logger.info(f'Aggregate Model has {err=} and {r2=}')
         compare_prediction_to_actual(total_predictions[ind], y_test[ind], fname='aggregate')
-        r2_by_category(total_predictions, y_test)
+
         return total_predictions
+
+    def stats_by_category(self, x, y, type_of_test: str = 'TypeUnknown'):
+        r2 = []
+        mserr = []
+        for model in self.models.values():
+            predictions = model.predict(x)
+            r2 += [r2_by_category(predictions, y)]
+            mserr += [mse_by_category(predictions, y)]
+
+        agg_prediction = self.predict(x, y, verbose=False)
+        r2 += [r2_by_category(agg_prediction, y)]
+        mserr += [mse_by_category(agg_prediction, y)]
+
+        names = []
+        for i, model_key in enumerate(self.models.keys()):
+            plt.plot([j for j in range(len(r2[i]))], r2[i])
+            names += [self.models[model_key].name]
+        plt.plot([j for j in range(len(r2[-1]))], r2[-1])
+        names += ['Aggregate']
+        plt.legend(names)
+        plt.title(f'{type_of_test} R^2 by Rating Category for each Model')
+        plt.ylabel('R^2')
+        plt.xlabel('Rating Category')
+        plt.show()
+        plt.clf()
+
+        names = []
+        for i, model_key in enumerate(self.models.keys()):
+            plt.plot([j for j in range(len(mserr[i]))], mserr[i])
+            names += [self.models[model_key].name]
+        plt.plot([j for j in range(len(mserr[-1]))], mserr[-1])
+        names += ['Aggregate']
+        plt.legend(names)
+        plt.title(f'{type_of_test} MSE by Rating Category for each Model')
+        plt.ylabel('MSE')
+        plt.xlabel('Rating Category')
+        plt.show()
+        plt.clf()
 
     def predict_last_year(self, x_test, y_test, additional_data: pd.DataFrame, keys: np.array):   # TODO
         total_predictions = self.predict(x_test, y_test)
+
+        if self.verbose:
+            self.stats_by_category(x_test, y_test, 'Testing')
 
         additional_data = additional_data[[type(cell) != str for cell in list(additional_data['loser_perc'])]]
         prediction_results_for_last_year = pd.DataFrame.from_dict({'election_id': keys.tolist(),

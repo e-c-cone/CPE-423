@@ -160,10 +160,11 @@ def generate_sig_data_file():
 
         sig.to_csv(sig_data_fpath)
         logger.warning('Sig Data file generated, run Votesmart script to generate name data')
-        pd.DataFrame(columns=sig['category_name_1'].unique(), index=sig['sig_id'].unique()).to_csv(os.path.join('Votesmart', 'sig_agg', 'SIG_FAVOR_TYPE.csv'))
+        pd.DataFrame(columns=sig['category_name_1'].unique(), index=sig['sig_id'].unique()).to_csv(
+            os.path.join('Votesmart', 'sig_agg', 'SIG_FAVOR_TYPE.csv'))
     # elif os.path.exists(data_fpath):
     #     data = pd.read_csv(data_fpath)
-        # data.T.to_csv(data_fpath)
+    # data.T.to_csv(data_fpath)
 
 
 def generate_combined_2000s() -> None:
@@ -195,7 +196,7 @@ def compare_prediction_to_actual(predy, actualy, fname: str = 'data'):
     """
     plt.bar([i for i in range(len(actualy))], actualy)
     plt.scatter([i for i in range(len(predy))], predy)
-    plt.plot([i for i in range(len(predy))], abs(actualy-predy))
+    plt.plot([i for i in range(len(predy))], abs(actualy - predy))
     plt.legend(loc='upper right')
     plt.savefig(os.path.join('plots', f'{fname}.png'))
     plt.clf()
@@ -226,10 +227,13 @@ def r2_by_category(prediction, y):
     y = np.array(y).T
     r2_vals = []
     for i, pred in enumerate(prediction):
-        r2_vals += [r2_score(y[i], pred)]
-    plt.plot([i for i in range(len(r2_vals))], r2_vals)
-    plt.show()
-    plt.clf()
+        try:    # TODO
+            r2_vals += [r2_score(y[i], pred)]
+        except:
+            print(y)
+            print(pred)
+            exit()
+
     return np.array(r2_vals)
 
 
@@ -240,20 +244,10 @@ def get_model_weights(r2_vals: np.ndarray):
     :param errors:
     :return:
     """
-    for r2 in r2_vals:
-        plt.plot([i for i in range(len(r2))], r2)
-        plt.show()
-        plt.clf()
-
-    # accuracy = 1/(errors+0.0000001)
     accuracy = r2_vals.T
     for i, arr in enumerate(accuracy):
         arr = np.clip(arr, 0, np.inf)
-        arr = arr/np.sum(arr)
-        # print(arr)
-        # arr = softmax(arr)
-        # print(arr, '\n')
-        # print(arr, '\n')
+        arr = arr / np.sum(arr)
         accuracy[i] = arr
 
     return accuracy.T
