@@ -43,7 +43,7 @@ class Model:
                      'inp_shape': inp_shape,
                      'out_shape': out_shape,
                      'metrics': ['accuracy'],
-                     'epochs': 17}
+                     'epochs': 15}
         }
         self.models = {
             "LiRe": LinearRegressor('LinearRegressor', **(self.hyperparams["LiRe"])),
@@ -74,9 +74,9 @@ class Model:
 
         return self
 
-    def predict(self, x_test, y_test, additional_data: pd.DataFrame, keys: np.array):   # TODO
+    def predict(self, x_test, y_test):
         total_predictions = []
-        ind = random.randint(0, len(x_test))
+        ind = random.randint(0, len(x_test) - 1)
 
         for key, model in self.models.items():
             prediction = np.array(model.predict(x_test))
@@ -98,6 +98,10 @@ class Model:
             r2 = r2_score(y_test, total_predictions)
             logger.info(f'Aggregate Model has {err=} and {r2=}')
         compare_prediction_to_actual(total_predictions[ind], y_test[ind], fname='aggregate')
+        return total_predictions
+
+    def predict_last_year(self, x_test, y_test, additional_data: pd.DataFrame, keys: np.array):   # TODO
+        total_predictions = self.predict(x_test, y_test)
 
         additional_data = additional_data[[type(cell) != str for cell in list(additional_data['loser_perc'])]]
         prediction_results_for_last_year = pd.DataFrame.from_dict({'election_id': keys.tolist(),

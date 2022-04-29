@@ -209,11 +209,12 @@ class data_generator:
             logger.success(f'Data was loaded successfully from {processed_fpath}.')
             return X, Y, additional_data, keys
             
-    def electionSquish(self):
+    def election_squish(self):
         df = pd.read_csv('pred_results_for_last_year.csv')
         
         newdf = pd.DataFrame()
-        newdf['Y'] = [ [i,j,False] if random.uniform(0,1) > .5 else [j,i,True] for i,j in zip(df['winner_perc'],df['loser_perc'])]
+        newdf['Y'] = [[i, j, False] if random.uniform(0, 1) > .5 else [j, i, True]
+                      for i, j in zip(df['winner_perc'], df['loser_perc'])]
         
         ind = ['x_test','prediction','y_test','second_best_ratings']
         
@@ -232,11 +233,11 @@ class data_generator:
         print(len(newdf['X'][0]))
         
         for i in range(len(newdf['Y'])):
-            newdf['Y'][i] = newdf['Y'][i][:-1] #remove true/false
+            newdf['Y'][i] = newdf['Y'][i][:-1]  # remove true/false
             if newdf['Y'][i][0] == .5:
-                newdf = newdf.drop([i])#drop rows with .5
-        newdf = newdf.set_index(pd.Index(range(len(newdf['Y'])))) #update indexes
-        newdf = newdf.iloc[:, [1,0]] #make columns [X,Y]
+                newdf = newdf.drop([i])     # drop rows with .5
+        newdf = newdf.set_index(pd.Index(range(len(newdf['Y']))))   # update indexes
+        newdf = newdf.iloc[:, [1, 0]]   # make columns [X,Y]
                 
         newdf['Y_BC'] = np.ones(len(newdf['Y']))
         for i in range(len(newdf['Y_BC'])):
@@ -245,6 +246,5 @@ class data_generator:
             else:
                 newdf['Y_BC'][i] = 0
             
-        #return newdf
-        newdf.to_csv('test.csv')
+        return newdf
         

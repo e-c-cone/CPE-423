@@ -1,21 +1,10 @@
-import os
 import argparse
-import tensorflow as tf
 import numpy as np
 import pandas as pd
-import seaborn as sn
-import matplotlib.pyplot as plt
 from loguru import logger
-from tensorflow.keras.layers import Dense, LSTM, Input
-from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
 
-import utils
-import processing.load_data as load_data
 from processing.election_data import data_generator
-from utils import compare_prediction_to_actual
 from models.model import Model
 
 
@@ -46,37 +35,61 @@ if __name__ == "__main__":
 
     # utils.generate_ids_from_cand_dir()
     dg = data_generator(args.cutoff_year, verbose, args.reload_data)
-    x, y, additional_data, keys = dg.generate_dataset()
+    # x, y, additional_data, keys = dg.generate_dataset()
 
-    train_inds = [(int(key.split('_')[1]) < int(args.cutoff_year)) for key in keys]
-    test_inds = [not ind for ind in train_inds]
+    predicted_results = []
+    for year in range(1996, args.cutoff_year)[::2]:
+        x, y, additional_data, keys = dg.generate_dataset()
+        train_inds = [(int(key.split('_')[1]) < int(args.cutoff_year)) for key in keys]
+        test_inds = [not ind for ind in train_inds]
 
-    x = np.array(x)
-    y = np.array(y)
+        x = np.array(x)
+        y = np.array(y)
 
-    # additional_data.to_csv('TEST.csv')
-    x_train = x[train_inds]
-    y_train = y[train_inds]
-    x_test = x[test_inds]
-    y_test = y[test_inds]
-    keys = np.array(keys)[test_inds]
-    additional_data = pd.DataFrame(additional_data).set_index('election_id').iloc[test_inds]
+        # additional_data.to_csv('TEST.csv')
+        x_train = x[train_inds]
+        y_train = y[train_inds]
+        x_test = x[test_inds]
+        y_test = y[test_inds]
+        keys = np.array(keys)[test_inds]
+        additional_data = pd.DataFrame(additional_data).set_index('election_id').iloc[test_inds]
 
-    if args.exclude:
-        model = Model(inp_shape=np.array(x_train).shape[1:], out_shape=np.array(y_train).shape[1],
-                      exclude=[args.exclude], verbose=verbose)
-    else:
-        model = Model(inp_shape=np.array(x_train).shape[1:], out_shape=np.array(y_train).shape[1], verbose=verbose)
+        if args.exclude:
+            model = Model(inp_shape=np.array(x_train).shape[1:], out_shape=np.array(y_train).shape[1],
+                          exclude=[args.exclude], verbose=verbose)
+        else:
+            model = Model(inp_shape=np.array(x_train).shape[1:], out_shape=np.array(y_train).shape[1], verbose=verbose)
 
-    if args.train:
-        model.fit(x_train, y_train)
-        model.save()
-    else:
-        try:
-            model.load()
-        except FileNotFoundError:
-            logger.warning(f'Model files not found, training model as usual')
+        if args.train:
             model.fit(x_train, y_train)
             model.save()
+        else:
+            try:
+                model.load()
+            except FileNotFoundError:
+                logger.warning(f'Model files not found, training model as usual')
+                model.fit(x_train, y_train)
+                model.save()
 
-    model.predict(x_test, y_test, additional_data, keys)
+        model.predict_last_year(x_test, y_test, additional_data, keys)
+
+        dataset = dg.election_squish()
+        predicted_results += [dataset]
+
+    dataset = pd.concat(predicted_results)
+    X = dataset['X']
+    Y = dataset['Y']
+    X = np.array([np.array(x) for x in X])
+    Y = np.array([np.array(y) for y in Y])
+    print(f'{X.shape=}, {Y.shape=}')
+
+    x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.3)
+
+    if args.exclude:
+        percent_regressor = Model(inp_shape=np.array(x_train).shape[1:], out_shape=np.array(y_train).shape[1],
+                                  exclude=[args.exclude], verbose=verbose)
+    else:
+        percent_regressor = Model(inp_shape=np.array(x_train).shape[1:], out_shape=np.array(y_train).shape[1], verbose=verbose)
+
+    percent_regressor.fit(x_train, y_train)
+    percent_regressor.predict(x_test, y_test)
