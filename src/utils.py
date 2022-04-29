@@ -227,6 +227,9 @@ def r2_by_category(prediction, y):
     r2_vals = []
     for i, pred in enumerate(prediction):
         r2_vals += [r2_score(y[i], pred)]
+    plt.plot([i for i in range(len(r2_vals))], r2_vals)
+    plt.show()
+    plt.clf()
     return np.array(r2_vals)
 
 

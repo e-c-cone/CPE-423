@@ -34,11 +34,12 @@ if __name__ == "__main__":
     # and continue by adding the GDP and Income data. This is not expected to be very accurate.
 
     # utils.generate_ids_from_cand_dir()
-    dg = data_generator(args.cutoff_year, verbose, args.reload_data)
+    
     # x, y, additional_data, keys = dg.generate_dataset()
 
     predicted_results = []
     for year in range(1996, args.cutoff_year)[::2]:
+        dg = data_generator(year, verbose, args.reload_data)
         x, y, additional_data, keys = dg.generate_dataset()
         train_inds = [(int(key.split('_')[1]) < int(args.cutoff_year)) for key in keys]
         test_inds = [not ind for ind in train_inds]

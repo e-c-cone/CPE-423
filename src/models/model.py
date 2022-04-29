@@ -98,6 +98,7 @@ class Model:
             r2 = r2_score(y_test, total_predictions)
             logger.info(f'Aggregate Model has {err=} and {r2=}')
         compare_prediction_to_actual(total_predictions[ind], y_test[ind], fname='aggregate')
+        r2_by_category(total_predictions, y_test)
         return total_predictions
 
     def predict_last_year(self, x_test, y_test, additional_data: pd.DataFrame, keys: np.array):   # TODO
